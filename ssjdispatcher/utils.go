@@ -47,3 +47,25 @@ func GetValueFromKeys(buff []byte, keys []string) (interface{}, error) {
 	return result, nil
 
 }
+
+func containKey(mapping map[string]interface{}, key string) bool {
+	for k := range mapping {
+		if k == key {
+			return true
+		}
+	}
+	return false
+}
+
+func GetValueFromDict(data interface{}, keys []string) (interface{}, error) {
+	dataMap := data
+	for _, key := range keys {
+		if containKey(dataMap.(map[string]interface{}), key) {
+			dataMap = dataMap.(map[string]interface{})[key]
+		} else {
+			return nil, errors.New("Does not contain key " + key)
+		}
+	}
+	return dataMap, nil
+
+}

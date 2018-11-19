@@ -2,13 +2,11 @@ package ssjdispatcher
 
 import (
 	"encoding/json"
+	"log"
 	"regexp"
 
 	"github.com/aws/aws-sdk-go/service/sqs"
 )
-
-const INDEXING string = "indexing"
-const USERSYNC string = "usersync"
 
 type S3ObjectHandler struct {
 	mapHandler map[string]string
@@ -31,11 +29,20 @@ func (handler *S3ObjectHandler) HandleS3Objects(message *sqs.Message) error {
 	}
 	records := mapping["Records"]
 	for _, record := range records {
-		//s3aw := record["s3"]
-		bucket := record.(map[string]interface{})["s3"].(map[string]interface{})["bucket"].(map[string]interface{})["name"].(string)
-		key := record.(map[string]interface{})["s3"].(map[string]interface{})["object"].(map[string]interface{})["key"].(string)
+		bucket, err := GetValueFromDict(record.(map[string]interface{}), []string{"s3", "bucket", "name"})
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		key, err := GetValueFromDict(record.(map[string]interface{}), []string{"s3", "object", "key"})
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		bucketName := bucket.(string)
+		keyName := key.(string)
 
-		objectPath := "s3://" + bucket + "/" + key
+		objectPath := "s3://" + bucketName + "/" + keyName
 
 		for pattern, handleImage := range handler.mapHandler {
 			re := regexp.MustCompile(pattern)
