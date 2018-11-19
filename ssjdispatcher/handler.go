@@ -47,8 +47,17 @@ func (handler *S3ObjectHandler) HandleS3Objects(message *sqs.Message) error {
 		for pattern, handleImage := range handler.mapHandler {
 			re := regexp.MustCompile(pattern)
 			if re.MatchString(objectPath) {
-				_, err := createK8sJob(objectPath, handleImage)
-				return err
+				result, err := createK8sJob(objectPath, handleImage)
+				if err != nil {
+					log.Println(err)
+					return err
+				}
+				out, err := json.Marshal(result)
+				if err != nil {
+					log.Println(err)
+					return err
+				}
+				log.Println(string(out))
 			}
 
 		}
