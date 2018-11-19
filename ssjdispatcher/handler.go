@@ -1,8 +1,7 @@
 package ssjdispatcher
 
 import (
-	"fmt"
-	"log"
+	"encoding/json"
 	"regexp"
 
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -23,45 +22,30 @@ func (handler *S3ObjectHandler) AddHandlerWithPattern(pattern string, jobName st
 	handler.mapHandler[pattern] = jobName
 }
 
-// getBucketName returns bucket name of s3 object
-func (handler *S3ObjectHandler) getBucketName(message *sqs.Message) (string, error) {
-	return "", nil
-}
-
-// getKeyName returns s3 object key
-func (handler *S3ObjectHandler) getKeyName(message *sqs.Message) (string, error) {
-	return "", nil
-}
-
 // HandleS3Object handle s3 object
-func (handler *S3ObjectHandler) HandleS3Object(message *sqs.Message) error {
-	objectPath, err := handler.getS3ObjectPath(message)
-	if err != nil {
-		return fmt.Errorf("S3ObjectHandler: Can not get the object path of %s. Details %s", message, err)
+func (handler *S3ObjectHandler) HandleS3Objects(message *sqs.Message) error {
+	mapping := make(map[string][]interface{})
+	msgBody := *message.Body
+	if err := json.Unmarshal([]byte(msgBody), &mapping); err != nil {
+		panic(err)
 	}
+	records := mapping["Records"]
+	for _, record := range records {
+		//s3aw := record["s3"]
+		bucket := record.(map[string]interface{})["s3"].(map[string]interface{})["bucket"].(map[string]interface{})["name"].(string)
+		key := record.(map[string]interface{})["s3"].(map[string]interface{})["object"].(map[string]interface{})["key"].(string)
 
-	for pattern, handleImage := range handler.mapHandler {
-		re := regexp.MustCompile(pattern)
-		if re.MatchString(objectPath) {
-			_, err := createK8sJob(objectPath, handleImage)
-			return err
+		objectPath := "s3://" + bucket + "/" + key
+
+		for pattern, handleImage := range handler.mapHandler {
+			re := regexp.MustCompile(pattern)
+			if re.MatchString(objectPath) {
+				_, err := createK8sJob(objectPath, handleImage)
+				return err
+			}
+
 		}
-
 	}
 	return nil
 
-}
-
-// getS3ObjectPath gets S3 object path
-func (handler *S3ObjectHandler) getS3ObjectPath(message *sqs.Message) (string, error) {
-	bucket, err := handler.getBucketName(message)
-	if err != nil {
-		return "", nil
-	}
-	key, err := handler.getKeyName(message)
-	if err != nil {
-		log.Println(err)
-		return "", nil
-	}
-	return "s3://" + bucket + "/" + key, nil
 }
