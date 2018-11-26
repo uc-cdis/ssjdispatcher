@@ -6,16 +6,17 @@ import (
 	"net/http"
 )
 
-type postData struct {
-	InputURL string `json:"inputURL"`
-}
-
-func RegisterManager() {
+func RegisterJob() {
 	http.HandleFunc("/status", status)
 	http.HandleFunc("/list", list)
 }
 
+// status checks the status of the job given UID
 func status(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Not supported request method.", 405)
+		return
+	}
 	UID := r.URL.Query().Get("UID")
 	if UID != "" {
 		result, errUID := getJobStatusByID(UID)
@@ -37,7 +38,12 @@ func status(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// list all the jobs
 func list(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Not supported request method.", 405)
+		return
+	}
 	result := listJobs(getJobClient())
 
 	out, err := json.Marshal(result)

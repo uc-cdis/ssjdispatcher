@@ -1,68 +1,63 @@
 package ssjdispatcher
 
 import (
+	"encoding/json"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 )
 
 // S3Credentials contains AWS credentials
-type S3Credentials struct {
+type AWSCredentials struct {
 	region             string
 	awsAccessKeyID     string
 	awsSecretAccessKey string
 }
 
-type AwsClient struct {
-	credentials S3Credentials
-	session     *session.Session
-}
-
-// LoadCredentialFromConfigFile loads AWS credentials from the config file
-func (client *AwsClient) LoadCredentialFromConfigFile(path string) error {
+// loadCredentialFromConfigFile loads AWS credentials from the config file
+func loadCredentialFromConfigFile(path string) (*AWSCredentials, error) {
+	credentials := new(AWSCredentials)
 	// Read data file
 	jsonBytes, err := ReadFile(path)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	var mapping map[string]interface{}
+	json.Unmarshal(jsonBytes, &mapping)
+	if region, err := GetValueFromDict(mapping, []string{"region"}); err != nil {
+		panic("Can not read region from credential file")
+	} else {
+		credentials.region = region.(string)
 	}
 
-	// Get AWS region
-	data, err := GetValueFromKeys(jsonBytes, []string{"AWS", "region"})
-	if err != nil {
-		return err
+	if awsKeyID, err := GetValueFromDict(mapping, []string{"aws_access_key_id"}); err != nil {
+		panic("Can not read aws key from credential file")
+	} else {
+		credentials.awsAccessKeyID = awsKeyID.(string)
 	}
-	client.credentials.region = data.(string)
 
-	// Get AWS access key id
-	data, err = GetValueFromKeys(jsonBytes, []string{"AWS", "aws_access_key_id"})
-	if err != nil {
-		return err
+	if awsSecret, err := GetValueFromDict(mapping, []string{"aws_secret_access_key"}); err != nil {
+		panic("Can not read aws key from credential file")
+	} else {
+		credentials.awsSecretAccessKey = awsSecret.(string)
 	}
-	client.credentials.awsAccessKeyID = data.(string)
 
-	// Get AWS secret access key
-	data, err = GetValueFromKeys(jsonBytes, []string{"AWS", "aws_secret_access_key"})
-	if err != nil {
-		return err
-	}
-	client.credentials.awsSecretAccessKey = data.(string)
-
-	return nil
+	return credentials, nil
 }
 
-// createNewSession creats a aws s3 session
-func (client *AwsClient) CreateNewSession() error {
+// CreateNewAwsClientSession creats an AWS client session
+func CreateNewAwsClientSession(credentialPath string) (*session.Session, error) {
+	cred, err := loadCredentialFromConfigFile(credentialPath)
+	if err != nil {
+		return nil, err
+	}
 
 	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(client.credentials.region),
+		Region: aws.String(cred.region),
 		Credentials: credentials.NewStaticCredentials(
-			client.credentials.awsAccessKeyID, client.credentials.awsSecretAccessKey, ""),
+			cred.awsAccessKeyID, cred.awsSecretAccessKey, ""),
 	})
-	client.session = sess
 
-	return err
-}
-
-func (client *AwsClient) GetClientSession() *session.Session {
-	return client.session
+	return sess, err
 }

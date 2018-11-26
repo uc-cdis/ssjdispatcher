@@ -5,16 +5,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
-// the path to aws credential
-const CREDPATH = "./credentials.json"
-
 // getSQSSession gets new sqs session
 func GetSQSSession() (*sqs.SQS, error) {
-	awsClient := AwsClient{}
-	awsClient.LoadCredentialFromConfigFile(CREDPATH)
-	awsClient.CreateNewSession()
 
-	return sqs.New(awsClient.GetClientSession()), nil
+	sess, err := CreateNewAwsClientSession(CREDENTIAL_PATH)
+	if err != nil {
+		return nil, err
+	}
+
+	return sqs.New(sess), nil
 }
 
 // getSQSMessages gets messages from queue

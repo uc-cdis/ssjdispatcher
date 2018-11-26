@@ -4,28 +4,32 @@ import (
 	"encoding/json"
 	"log"
 	"regexp"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
-type S3ObjectHandler struct {
-	mapHandler map[string]string
+type SQSHandler struct {
+	QueueURL   string
+	Start      bool
+	PatternMap *ImagePatternMap
 }
 
-func (handler *S3ObjectHandler) InitHandlerMap() {
-	handler.mapHandler = make(map[string]string)
+// NewSQSHandler creates new SQSHandler instance
+func NewSQSHandler(queueURL string, start bool) *SQSHandler {
+	sqsHandler := new(SQSHandler)
+	sqsHandler.QueueURL = queueURL
+	sqsHandler.Start = start
+	sqsHandler.PatternMap = GetNewImagePatternMap()
+	return sqsHandler
 }
 
-func (handler *S3ObjectHandler) AddHandlerWithPattern(pattern string, jobName string) {
-	handler.mapHandler[pattern] = jobName
-}
-
-// HandleS3Object handle s3 object
-func (handler *S3ObjectHandler) HandleS3Objects(message *sqs.Message) error {
+// HandleSQSMessage handles SQS messages
+func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
 	mapping := make(map[string][]interface{})
 	msgBody := *message.Body
 	if err := json.Unmarshal([]byte(msgBody), &mapping); err != nil {
-		panic(err)
+		return err
 	}
 	records := mapping["Records"]
 	for _, record := range records {
@@ -44,7 +48,7 @@ func (handler *S3ObjectHandler) HandleS3Objects(message *sqs.Message) error {
 
 		objectPath := "s3://" + bucketName + "/" + keyName
 
-		for pattern, handleImage := range handler.mapHandler {
+		for pattern, handleImage := range handler.PatternMap.Mapping {
 			re := regexp.MustCompile(pattern)
 			if re.MatchString(objectPath) {
 				result, err := createK8sJob(objectPath, handleImage)
@@ -64,4 +68,41 @@ func (handler *S3ObjectHandler) HandleS3Objects(message *sqs.Message) error {
 	}
 	return nil
 
+}
+
+// StartSQSQuerying periodically queries SQS URL to get messages
+func StartSQSQuerying(sqsHandler *SQSHandler) {
+	svc, err := GetSQSSession()
+	if err != nil {
+		panic(err)
+	}
+	for {
+		if sqsHandler.Start == false {
+			time.Sleep(10 * time.Second)
+			log.Println("The service is sleeping")
+			continue
+		}
+
+		time.Sleep(2 * time.Second)
+		log.Println("The service is running")
+
+		resp, err := GetSQSMessages(svc, sqsHandler.QueueURL)
+		if err != nil {
+			log.Printf("Can not query %s. Please check the URL. Detail %s\n", sqsHandler.QueueURL, err)
+		}
+
+		for _, message := range resp.Messages {
+			//log.Printf("[Receive message] \n%v \n\n", message)
+			err := sqsHandler.HandleSQSMessage(message)
+			if err != nil {
+				log.Printf("Can not handle message \n%v \n\nDetail: %s", message, err)
+				continue
+			} else {
+				if DeleteSQSMessage(svc, sqsHandler.QueueURL, message) != nil {
+				} else {
+					log.Printf("[Delete message] \nMessage ID: %s has beed deleted.\n\n", *message.MessageId)
+				}
+			}
+		}
+	}
 }
