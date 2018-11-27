@@ -27,14 +27,22 @@ func NewSQSHandler(queueURL string, start bool) *SQSHandler {
 }
 
 // StartServer starts a server
-func (handler *SQSHandler) StartServer() {
-	fmt.Println("Start a new server")
-	if handler.Server == nil {
-		handler.Server = mq.NewServer(handler.QueueURL, mq.HandlerFunc(func(m *mq.Message) error {
-			return handler.HandleSQSMessage(m)
-		}))
-		handler.Server.Start()
+func (handler *SQSHandler) StartServer() error {
+	if handler.Server != nil {
+		return nil
 	}
+	fmt.Println("Start a new server")
+	newClient, err := NewSQSClient()
+	if err != nil {
+		return err
+	}
+
+	handler.Server = mq.NewServer(handler.QueueURL, mq.HandlerFunc(func(m *mq.Message) error {
+		return handler.HandleSQSMessage(m)
+	}), mq.WithClient(newClient))
+	handler.Server.Start()
+
+	return nil
 
 }
 

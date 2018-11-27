@@ -12,6 +12,8 @@ import (
 func main() {
 	var queueURL string
 	var mappingStr string
+	queueURL = "https://sqs.us-east-1.amazonaws.com/440721843528/mySQS"
+	mappingStr = "{\"s3://xssxs*\": \"quay.io/cdis/simu_demo:latest\"}"
 
 	argsWithProg := os.Args
 	if len(argsWithProg) > 1 {
@@ -36,5 +38,5 @@ func main() {
 	ssjdispatcher.RegisterJob()
 	ssjdispatcher.RegisterSystem()
 
-	log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
+	log.Fatal(http.ListenAndServe("0.0.0.0:80", nil))
 }
