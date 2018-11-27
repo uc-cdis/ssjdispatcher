@@ -2,7 +2,7 @@
 
 
 [[projects]]
-  digest = "1:f3206a26dbf58a48895cdccf03e26f3f6b8f00180cfa028fc3743a4a41599e76"
+  digest = "1:1bcdc6d30c0aede6005f1ff3bc86bffb42cffe5ee77d5d02febdc1a7ba8456fc"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -33,6 +33,7 @@
     "private/protocol/rest",
     "private/protocol/xml/xmlutil",
     "service/sqs",
+    "service/sqs/sqsiface",
     "service/sts",
   ]
   pruneopts = "UT"
@@ -157,6 +158,14 @@
   pruneopts = "UT"
   revision = "5f041e8faa004a95c88a202771f4cc3e991971e6"
   version = "v2.0.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:acabf0369f72175a9d6bd7171bea4d268b7ce2a2db7182b40d11ce00215532f3"
+  name = "github.com/remind101/mq-go"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5922c95e08f965ab0418837e6390401830c76b40"
 
 [[projects]]
   branch = "master"
@@ -432,6 +441,7 @@
     "github.com/aws/aws-sdk-go/aws/credentials",
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/sqs",
+    "github.com/remind101/mq-go",
     "k8s.io/api/batch/v1",
     "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1",

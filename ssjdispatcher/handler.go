@@ -1,33 +1,54 @@
 package ssjdispatcher
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"regexp"
-	"time"
 
-	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/remind101/mq-go"
 )
 
 type SQSHandler struct {
 	QueueURL   string
 	Start      bool
 	PatternMap *ImagePatternMap
+	Server     *mq.Server
 }
 
 // NewSQSHandler creates new SQSHandler instance
 func NewSQSHandler(queueURL string, start bool) *SQSHandler {
 	sqsHandler := new(SQSHandler)
 	sqsHandler.QueueURL = queueURL
-	sqsHandler.Start = start
 	sqsHandler.PatternMap = GetNewImagePatternMap()
 	return sqsHandler
 }
 
-// HandleSQSMessage handles SQS messages
-func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
+func (handler *SQSHandler) StartServer() {
+	fmt.Println("Start a new server")
+	if handler.Server == nil {
+		handler.Server = mq.NewServer(handler.QueueURL, mq.HandlerFunc(func(m *mq.Message) error {
+			return handler.HandleSQSMessage(m)
+		}))
+		handler.Server.Start()
+	}
+
+}
+
+func (handler *SQSHandler) ShutdownServer() {
+	fmt.Println("Shutdown the server")
+	if handler.Server == nil {
+		return
+	}
+	handler.Server.Shutdown(context.Background())
+	handler.Server = nil
+}
+
+func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 	mapping := make(map[string][]interface{})
-	msgBody := *message.Body
+	msgBody := aws.StringValue(m.SQSMessage.Body)
 	if err := json.Unmarshal([]byte(msgBody), &mapping); err != nil {
 		return err
 	}
@@ -48,6 +69,8 @@ func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
 
 		objectPath := "s3://" + bucketName + "/" + keyName
 
+		fmt.Println("Processing: ", objectPath)
+
 		for pattern, handleImage := range handler.PatternMap.Mapping {
 			re := regexp.MustCompile(pattern)
 			if re.MatchString(objectPath) {
@@ -67,42 +90,4 @@ func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
 		}
 	}
 	return nil
-
-}
-
-// StartSQSQuerying periodically queries SQS URL to get messages
-func StartSQSQuerying(sqsHandler *SQSHandler) {
-	svc, err := GetSQSSession()
-	if err != nil {
-		panic(err)
-	}
-	for {
-		if sqsHandler.Start == false {
-			time.Sleep(10 * time.Second)
-			log.Println("The service is sleeping")
-			continue
-		}
-
-		time.Sleep(2 * time.Second)
-		log.Println("The service is running")
-
-		resp, err := GetSQSMessages(svc, sqsHandler.QueueURL)
-		if err != nil {
-			log.Printf("Can not query %s. Please check the URL. Detail %s\n", sqsHandler.QueueURL, err)
-		}
-
-		for _, message := range resp.Messages {
-			//log.Printf("[Receive message] \n%v \n\n", message)
-			err := sqsHandler.HandleSQSMessage(message)
-			if err != nil {
-				log.Printf("Can not handle message \n%v \n\nDetail: %s", message, err)
-				continue
-			} else {
-				if DeleteSQSMessage(svc, sqsHandler.QueueURL, message) != nil {
-				} else {
-					log.Printf("[Delete message] \nMessage ID: %s has beed deleted.\n\n", *message.MessageId)
-				}
-			}
-		}
-	}
 }

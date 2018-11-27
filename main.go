@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -10,8 +10,8 @@ import (
 )
 
 func main() {
-	queueURL := "https://sqs.us-east-1.amazonaws.com/440721843528/mySQS"
-	mappingStr := "{\"pattern1\": \"quay.io/cdis/do_1\", \"pattern2\": \"quay.io/cdis/do_2\"}"
+	var queueURL string
+	var mappingStr string
 
 	argsWithProg := os.Args
 	if len(argsWithProg) > 1 {
@@ -24,13 +24,11 @@ func main() {
 
 	SQSHandler := ssjdispatcher.NewSQSHandler(queueURL, true)
 
-	var mapping map[string]string
-	if err := json.Unmarshal([]byte(mappingStr), &mapping); err != nil {
-		panic(err)
-	}
+	SQSHandler.StartServer()
+	defer SQSHandler.Server.Shutdown(context.Background())
 
-	for pattern, quayImage := range mapping {
-		SQSHandler.PatternMap.AddImagePatternMap(pattern, quayImage)
+	if err := SQSHandler.PatternMap.AddImagePatternMapFromJson(mappingStr); err != nil {
+		log.Printf("Can not add pattern map from json %s", err)
 	}
 
 	SQSHandler.RegisterSQSHandler()
@@ -39,8 +37,5 @@ func main() {
 	ssjdispatcher.RegisterJob()
 	ssjdispatcher.RegisterSystem()
 
-	go ssjdispatcher.StartSQSQuerying(SQSHandler)
-
 	log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
-
 }
