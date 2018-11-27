@@ -26,6 +26,7 @@ func NewSQSHandler(queueURL string, start bool) *SQSHandler {
 	return sqsHandler
 }
 
+// StartServer starts a server
 func (handler *SQSHandler) StartServer() {
 	fmt.Println("Start a new server")
 	if handler.Server == nil {
@@ -37,6 +38,7 @@ func (handler *SQSHandler) StartServer() {
 
 }
 
+// ShutdownServer shutdowns a server
 func (handler *SQSHandler) ShutdownServer() {
 	fmt.Println("Shutdown the server")
 	if handler.Server == nil {
@@ -46,6 +48,10 @@ func (handler *SQSHandler) ShutdownServer() {
 	handler.Server = nil
 }
 
+// HandleSQSMessage handles SQS message
+// This fuction takes a sqs message as input, extract the url of the object
+// then match with filter pattern to decide which image need to be pulled
+// to handle the s3 object
 func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 	mapping := make(map[string][]interface{})
 	msgBody := aws.StringValue(m.SQSMessage.Body)

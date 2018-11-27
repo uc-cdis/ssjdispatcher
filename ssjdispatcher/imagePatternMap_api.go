@@ -7,10 +7,12 @@ import (
 	"net/http"
 )
 
+// RegisterImagePatternMap registers pattern-image map handler
 func (ipm *ImagePatternMap) RegisterImagePatternMap() {
 	http.HandleFunc("/pattern", ipm.handleImagePatternMap_api)
 }
 
+// handleImagePatternMap_api handles pattern-image map
 func (ipm *ImagePatternMap) handleImagePatternMap_api(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		ipm.listImagePatternMap(w, r)
@@ -22,6 +24,7 @@ func (ipm *ImagePatternMap) handleImagePatternMap_api(w http.ResponseWriter, r *
 
 }
 
+// addImagePatternMap add an pattern-image map
 func (ipm *ImagePatternMap) addImagePatternMap(w http.ResponseWriter, r *http.Request) {
 	// Try to read the request body.
 	body, err := ioutil.ReadAll(r.Body)
@@ -44,6 +47,7 @@ func (ipm *ImagePatternMap) addImagePatternMap(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// deleteImagePatternMap deletes pattern-image map
 func (ipm *ImagePatternMap) deleteImagePatternMap(w http.ResponseWriter, r *http.Request) {
 	val := r.URL.Query().Get("pattern")
 	if err := ipm.DeleteImagePatternMap(val); err != nil {
@@ -53,6 +57,7 @@ func (ipm *ImagePatternMap) deleteImagePatternMap(w http.ResponseWriter, r *http
 
 }
 
+// listImagePatternMap lists all pattern-image maps
 func (ipm *ImagePatternMap) listImagePatternMap(w http.ResponseWriter, r *http.Request) {
 	str := ""
 	for pattern, handleImage := range ipm.Mapping {

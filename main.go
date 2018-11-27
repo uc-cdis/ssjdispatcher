@@ -23,13 +23,12 @@ func main() {
 	}
 
 	SQSHandler := ssjdispatcher.NewSQSHandler(queueURL, true)
-
-	SQSHandler.StartServer()
-	defer SQSHandler.Server.Shutdown(context.Background())
-
 	if err := SQSHandler.PatternMap.AddImagePatternMapFromJson(mappingStr); err != nil {
 		log.Printf("Can not add pattern map from json %s", err)
 	}
+
+	SQSHandler.StartServer()
+	defer SQSHandler.Server.Shutdown(context.Background())
 
 	SQSHandler.RegisterSQSHandler()
 	SQSHandler.PatternMap.RegisterImagePatternMap()
