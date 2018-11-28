@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/uc-cdis/ssjdispatcher/ssjdispatcher"
+	"ssjdispatcher"
 )
 
 func main() {

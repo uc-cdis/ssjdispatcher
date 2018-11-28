@@ -1,18 +1,49 @@
-FROM golang:1.10-alpine as build
+FROM golang:1.10 as build-deps
 
-# Install SSL certificates
-RUN apk update && apk add --no-cache git ca-certificates gcc musl-dev
+WORKDIR /ssjdispatcher
+ENV GOPATH=/ssjdispatcher
 
-# Build static arborist binary
-RUN mkdir -p /go/src/github.com/uc-cdis/ssjdispatcher
-WORKDIR /go/src/github.com/uc-cdis/ssjdispatcher
-ADD . .
-RUN go build -ldflags "-linkmode external -extldflags -static" -o bin/ssjdispatcher
+RUN go get -tags k8s.io/client-go/kubernetes \
+    k8s.io/apimachinery/pkg/apis/meta/v1 \
+    k8s.io/api/core/v1 \
+    k8s.io/api/batch/v1 \
+    k8s.io/client-go/tools/clientcmd \
+    k8s.io/client-go/rest
 
-# Set up small scratch image, and copy necessary things over
+COPY . /ssjdispatcher
+
+RUN go build -ldflags "-linkmode external -extldflags -static"
+
+# Store only the resulting binary in the final image
+# Resulting in significantly smaller docker image size
 FROM scratch
-
-COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=build /go/src/github.com/uc-cdis/ssjdispatcher/bin/ssjdispatcher /ssjdispatcher
+COPY --from=build-deps /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=build-deps /ssjdispatcher/ssjdispatcher /ssjdispatcher
 
 ENTRYPOINT ["/ssjdispatcher"]
+
+# FROM golang:1.10 as build-deps
+
+# Install SSL certificates
+# RUN apk update && apk add --no-cache git ca-certificates gcc musl-dev
+
+# RUN go get -tags k8s.io/client-go/kubernetes \
+#     k8s.io/apimachinery/pkg/apis/meta/v1 \
+#     k8s.io/api/core/v1 \
+#     k8s.io/api/batch/v1 \
+#     k8s.io/client-go/tools/clientcmd \
+#     k8s.io/client-go/rest
+
+# # Build static arborist binary
+# RUN mkdir -p /go/src/github.com/uc-cdis/ssjdispatcher
+# WORKDIR /go/src/github.com/uc-cdis/ssjdispatcher
+# ADD . .
+# RUN go build -ldflags "-linkmode external -extldflags -static" -o bin/ssjdispatcher
+
+# # Set up small scratch image, and copy necessary things over
+# FROM scratch
+
+# COPY --from=build-deps /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+# COPY --from=build-deps /go/src/github.com/uc-cdis/ssjdispatcher/bin/ssjdispatcher /ssjdispatcher
+
+# ENTRYPOINT ["/ssjdispatcher"]
