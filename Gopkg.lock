@@ -441,6 +441,7 @@
     "github.com/aws/aws-sdk-go/aws/credentials",
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/sqs",
+    "github.com/aws/aws-sdk-go/service/sqs/sqsiface",
     "github.com/remind101/mq-go",
     "k8s.io/api/batch/v1",
     "k8s.io/api/core/v1",
