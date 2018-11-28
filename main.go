@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"ssjdispatcher"
+	"github.com/uc-cdis/ssjdispatcher/handlers"
 )
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 		mappingStr = argsWithProg[2]
 	}
 
-	SQSHandler := ssjdispatcher.NewSQSHandler(queueURL, true)
+	SQSHandler := handlers.NewSQSHandler(queueURL, true)
 	if err := SQSHandler.PatternMap.AddImagePatternMapFromJson(mappingStr); err != nil {
 		log.Printf("Can not add pattern map from json %s", err)
 	}
@@ -35,8 +35,8 @@ func main() {
 	SQSHandler.RegisterSQSHandler()
 	SQSHandler.PatternMap.RegisterImagePatternMap()
 
-	ssjdispatcher.RegisterJob()
-	ssjdispatcher.RegisterSystem()
+	handlers.RegisterJob()
+	handlers.RegisterSystem()
 
-	log.Fatal(http.ListenAndServe("0.0.0.0:80", nil))
+	log.Fatal(http.ListenAndServe("0.0.0.0:8000", nil))
 }

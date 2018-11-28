@@ -1,4 +1,4 @@
-package ssjdispatcher
+package handlers
 
 import (
 	"crypto/rand"

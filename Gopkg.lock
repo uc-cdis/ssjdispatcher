@@ -2,7 +2,7 @@
 
 
 [[projects]]
-  digest = "1:1bcdc6d30c0aede6005f1ff3bc86bffb42cffe5ee77d5d02febdc1a7ba8456fc"
+  digest = "1:5ab59ca054b8cb3306a18a8ee7da1bea201207f7b59147ab370be1f527f7297e"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -37,8 +37,8 @@
     "service/sts",
   ]
   pruneopts = "UT"
-  revision = "5ebc7a404e942062fd3aa7ff50975498716eb990"
-  version = "v1.15.78"
+  revision = "08df30d135d32f1eb21bb7754eb042aeca521a4b"
+  version = "v1.15.84"
 
 [[projects]]
   digest = "1:34e709f36fd4f868fb00dbaf8a6cab4c1ae685832d392874ba9d7c5dec2429d1"
@@ -169,11 +169,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3f3a05ae0b95893d90b9b3b5afdb79a9b3d96e4e36e099d841ae602e4aca0da8"
+  digest = "1:38f553aff0273ad6f367cb0a0f8b6eecbaef8dc6cb8b50e57b6a81c1d5b1e332"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
   pruneopts = "UT"
-  revision = "3d3f9f413869b949e48070b5bc593aa22cc2b8f2"
+  revision = "eb0de9b17e854e9b1ccd9963efafc79862359959"
 
 [[projects]]
   branch = "master"
@@ -192,25 +192,25 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:bd33fb266abe5db1fb1c04e58e98192068f05a8d22fae2a9f22270c8422bb331"
+  digest = "1:0142ef85bbc356750e329654ef29734ff05bd70ec9d8c1f46e39a3e97683318f"
   name = "golang.org/x/oauth2"
   packages = [
     ".",
     "internal",
   ]
   pruneopts = "UT"
-  revision = "f42d05182288abf10faef86d16c0d07b8d40ea2d"
+  revision = "8f65e3013ebad444f13bc19536f7865efc793816"
 
 [[projects]]
   branch = "master"
-  digest = "1:a089387bbfcfa884e5aafeebb85929993195bb8959766b1d20102841d47e0b0e"
+  digest = "1:f343f077a5b0bc3a3788b3a04e24dd417e3e25b2acb529c413e212d2c42416ef"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "93218def8b18e66adbdab3eca8ec334700329f1f"
+  revision = "62eef0e2fa9b2c385f7b2778e763486da6880d37"
 
 [[projects]]
   digest = "1:a2ab62866c75542dd18d2b069fec854577a20211d7c0ea6ae746072a1dccdd18"
@@ -313,7 +313,7 @@
     "storage/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "46ad728b8d13de6dffe4396623b098473f626e9e"
+  revision = "b7bd5f2d334ce968edc54f5fdb2ac67ce39c56d5"
 
 [[projects]]
   branch = "master"
@@ -357,7 +357,7 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = "UT"
-  revision = "1b0702fe2927f82126da9c2ecf567f14676f6072"
+  revision = "4a9a8137c0a17bc4594f544987b3f0d48b2e3d3a"
 
 [[projects]]
   digest = "1:8cb007446244cc189828c52199986a7122d8ad7a5ebec61028dcaaf71312c838"

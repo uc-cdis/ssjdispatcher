@@ -1,4 +1,4 @@
-package ssjdispatcher
+package handlers
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"regexp"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/remind101/mq-go"
+	mq "github.com/remind101/mq-go"
 )
 
 type SQSHandler struct {
