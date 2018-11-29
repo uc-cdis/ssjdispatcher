@@ -40,7 +40,7 @@ func getJobClient() batchtypev1.JobInterface {
 	// Access jobs. We can't do it all in one line, since we need to receive the
 	// errors and manage thgem appropriately
 	batchClient := clientset.BatchV1()
-	jobsClient := batchClient.Jobs("default")
+	jobsClient := batchClient.Jobs("giangb")
 	return jobsClient
 }
 
@@ -121,8 +121,9 @@ func createK8sJob(inputURL string, image string) (*JobInfo, error) {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: make(map[string]string),
+			Name:      name,
+			Namespace: "giangb",
+			Labels:    make(map[string]string),
 		},
 		Spec: batchv1.JobSpec{
 			// Optional: Parallelism:,
@@ -133,8 +134,9 @@ func createK8sJob(inputURL string, image string) (*JobInfo, error) {
 			ActiveDeadlineSeconds: &deadline,
 			Template: k8sv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:   name,
-					Labels: make(map[string]string),
+					Name:      name,
+					Namespace: "giangb",
+					Labels:    make(map[string]string),
 				},
 				Spec: k8sv1.PodSpec{
 					InitContainers: []k8sv1.Container{}, // Doesn't seem obligatory(?)...
