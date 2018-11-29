@@ -13,7 +13,7 @@ func main() {
 	var queueURL string
 	var mappingStr string
 	queueURL = "https://sqs.us-east-1.amazonaws.com/440721843528/mySQS"
-	mappingStr = "{\"s3://xssxs*\": \"quay.io/cdis/simu_demo:latest\"}"
+	mappingStr = "{\"s3://xssxs*\": \"quay.io/cdis/indexs3client:feat_hash\"}"
 
 	argsWithProg := os.Args
 	if len(argsWithProg) > 1 {
