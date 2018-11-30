@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -70,6 +71,38 @@ func getJobStatusByID(jobid string) (*JobInfo, error) {
 	return &ji, nil
 }
 
+func deleteJobByID(jobid string, afterSeconds int64) error {
+	client := getJobClient()
+	job, err := getJobByID(client, jobid)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("=======================\n\nStart to delete job %s\n", job.Name)
+	deleteOption := metav1.NewDeleteOptions(afterSeconds)
+	//deleteOption := metav1.DeleteOptions{"deleteOption": 10}
+
+	var deletionPropagation metav1.DeletionPropagation = "Background"
+
+	// orphanDependents := true
+	// deleteOption.OrphanDependents = &orphanDependents
+	deleteOption.PropagationPolicy = &deletionPropagation //metav1.DeletePropagationBackground
+	// metav1.DeletionPropagation.
+
+	if err = client.Delete(job.Name, deleteOption); err != nil {
+		fmt.Println(err)
+	}
+
+	// fmt.Printf("=======================\n\nStart to delete job ")
+	// if err = client.Delete(job.Name, metav1.NewDeleteOptions(afterSeconds)); err != nil {
+	// 	fmt.Println(err)
+	// }
+
+	// timestamp := metav1.NewTime(time.Now().Add(time.Duration(afterSeconds) * time.Second))
+	// job.SetDeletionTimestamp(&timestamp)
+	return nil
+
+}
+
 func listJobs(jc batchtypev1.JobInterface) JobsArray {
 	jobs := JobsArray{}
 
@@ -108,10 +141,36 @@ func jobStatusToString(status *batchv1.JobStatus) string {
 	return "Unknown"
 }
 
-func createK8sJob(inputURL string, image string) (*JobInfo, error) {
+func isResourceAvailbility(prefix string) bool {
+
+	jobs := listJobs(getJobClient())
+	nJobRunning := 0
+	for i := 0; i < len(jobs.JobInfo); i++ {
+		job := jobs.JobInfo[i]
+		if strings.HasPrefix(job.Name, prefix) {
+			if job.Status == "Running" {
+				nJobRunning++
+			} else if job.Status == "Completed" {
+				deleteJobByID(job.UID, GRACE_PERIOD)
+			}
+		}
+	}
+
+	return nJobRunning < JOB_NUM_MAX
+
+}
+
+func createK8sJob(inputURL string, image string, prefix string) (*JobInfo, error) {
+	// if number of running jobs get larger than limit, return error
+	// so that the inputURL is put back to SQS. Don't need to sleep since
+	// SQS has a timeout already
+	if !isResourceAvailbility(prefix) {
+		return nil, errors.New("Number of running jobs get the max threshold")
+	}
+
 	jobsClient := getJobClient()
 	randname, _ := GetRandString(5)
-	name := fmt.Sprintf("indexing-%s", randname)
+	name := fmt.Sprintf("%s-%s", prefix, randname)
 	fmt.Println("job input URL: ", inputURL)
 	var deadline int64 = 600
 	// For an example of how to create jobs, see this file:

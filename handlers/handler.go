@@ -88,7 +88,7 @@ func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 		for pattern, handleImage := range handler.PatternMap.Mapping {
 			re := regexp.MustCompile(pattern)
 			if re.MatchString(objectPath) {
-				result, err := createK8sJob(objectPath, handleImage)
+				result, err := createK8sJob(objectPath, handleImage, "indexing")
 				if err != nil {
 					log.Println(err)
 					return err
