@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -40,7 +41,7 @@ func getJobClient() batchtypev1.JobInterface {
 	// Access jobs. We can't do it all in one line, since we need to receive the
 	// errors and manage thgem appropriately
 	batchClient := clientset.BatchV1()
-	jobsClient := batchClient.Jobs("giangb")
+	jobsClient := batchClient.Jobs(os.Getenv("GEN3_NAMESPACE"))
 	return jobsClient
 }
 
