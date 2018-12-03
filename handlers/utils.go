@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -24,8 +25,9 @@ func containKey(mapping map[string]interface{}, key string) bool {
 	return false
 }
 
-func GetValueFromDict(data interface{}, keys []string) (interface{}, error) {
-	dataMap := data
+func GetValueFromJson(jsonBytes []byte, keys []string) (interface{}, error) {
+	var dataMap interface{}
+	json.Unmarshal(jsonBytes, &dataMap)
 	for _, key := range keys {
 		if containKey(dataMap.(map[string]interface{}), key) {
 			dataMap = dataMap.(map[string]interface{})[key]

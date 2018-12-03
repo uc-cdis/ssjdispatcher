@@ -1,39 +1,60 @@
+/*
+K8S Dispatcher Service
+
+// register SQS url
+curl -X PUT http://localhost:8000/sqs?url=https://sqs.us-east-1.amazonaws.com/440721843528/mySQS
+
+// start the service/server
+curl -X PUT http://localhost:8000/server?start=true
+
+// register new job
+curl -X POST http://localhost:8000/job -d '{"Name":"TEST3", "Pattern":"s3://test/*","Image":"quay.io/cdis/indexs3client:master", "ImageConfig":{}}'
+
+*/
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/uc-cdis/ssjdispatcher/handlers"
 )
 
 func main() {
-	var queueURL string
-	var mappingStr string
-	queueURL = "https://sqs.us-east-1.amazonaws.com/440721843528/mySQS"
-	mappingStr = "{\"s3://xssxs*\": \"quay.io/cdis/indexs3client:feat_hash\"}"
-
-	argsWithProg := os.Args
-	if len(argsWithProg) > 1 {
-		queueURL = argsWithProg[1]
+	jsonBytes, err := handlers.ReadFile(handlers.CREDENTIAL_PATH)
+	if err != nil {
+		log.Println("Can not read credential file. Continue anyway!")
+		return
 	}
 
-	if len(argsWithProg) > 2 {
-		mappingStr = argsWithProg[2]
+	var sqsURL string
+	if sqs, err := handlers.GetValueFromJson(jsonBytes, []string{"SQS", "url"}); err != nil {
+		log.Println("Can not read SQS url from credential file. Continue anyway!")
+		return
+	} else {
+		sqsURL = sqs.(string)
 	}
 
-	SQSHandler := handlers.NewSQSHandler(queueURL, true)
-	if err := SQSHandler.PatternMap.AddImagePatternMapFromJson(mappingStr); err != nil {
-		log.Printf("Can not add pattern map from json %s", err)
-	}
+	jobInterfaces, _ := handlers.GetValueFromJson(jsonBytes, []string{"JOBS"})
 
+	b, err := json.Marshal(jobInterfaces)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	jobConfigs := make([]handlers.JobConfig, 0)
+	json.Unmarshal(b, &jobConfigs)
+
+	// start an SQSHandler instance
+	SQSHandler := handlers.NewSQSHandler(sqsURL)
 	SQSHandler.StartServer()
 	defer SQSHandler.Server.Shutdown(context.Background())
 
+	SQSHandler.JobConfigs = jobConfigs
+
 	SQSHandler.RegisterSQSHandler()
-	SQSHandler.PatternMap.RegisterImagePatternMap()
 
 	handlers.RegisterJob()
 	handlers.RegisterSystem()

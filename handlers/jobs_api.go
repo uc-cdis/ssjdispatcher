@@ -7,8 +7,8 @@ import (
 )
 
 func RegisterJob() {
-	http.HandleFunc("/status", status)
-	http.HandleFunc("/list", list)
+	http.HandleFunc("/job/status", status)
+	http.HandleFunc("/job/list", list)
 }
 
 // status checks the status of the job given UID

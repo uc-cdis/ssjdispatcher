@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -17,6 +15,7 @@ type AWSCredentials struct {
 	awsSecretAccessKey string
 }
 
+// NewSQSClient create new SQSAPI client
 func NewSQSClient() (sqsiface.SQSAPI, error) {
 	cred, err := loadCredentialFromConfigFile(CREDENTIAL_PATH)
 	if err != nil {
@@ -24,7 +23,6 @@ func NewSQSClient() (sqsiface.SQSAPI, error) {
 	}
 
 	config := aws.NewConfig()
-	//config = config.WithEndpoint(os.Getenv("ELASTICMQ_URL"))
 
 	config = config.WithRegion(cred.region)
 	config = config.WithCredentials(credentials.NewStaticCredentials(cred.awsAccessKeyID, cred.awsSecretAccessKey, ""))
@@ -39,21 +37,20 @@ func loadCredentialFromConfigFile(path string) (*AWSCredentials, error) {
 	if err != nil {
 		return nil, err
 	}
-	var mapping map[string]interface{}
-	json.Unmarshal(jsonBytes, &mapping)
-	if region, err := GetValueFromDict(mapping, []string{"region"}); err != nil {
+
+	if region, err := GetValueFromJson(jsonBytes, []string{"AWS", "region"}); err != nil {
 		panic("Can not read region from credential file")
 	} else {
 		credentials.region = region.(string)
 	}
 
-	if awsKeyID, err := GetValueFromDict(mapping, []string{"aws_access_key_id"}); err != nil {
+	if awsKeyID, err := GetValueFromJson(jsonBytes, []string{"AWS", "aws_access_key_id"}); err != nil {
 		panic("Can not read aws key from credential file")
 	} else {
 		credentials.awsAccessKeyID = awsKeyID.(string)
 	}
 
-	if awsSecret, err := GetValueFromDict(mapping, []string{"aws_secret_access_key"}); err != nil {
+	if awsSecret, err := GetValueFromJson(jsonBytes, []string{"AWS", "aws_secret_access_key"}); err != nil {
 		panic("Can not read aws key from credential file")
 	} else {
 		credentials.awsSecretAccessKey = awsSecret.(string)

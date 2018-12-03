@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"regexp"
@@ -14,23 +15,32 @@ import (
 type SQSHandler struct {
 	QueueURL   string
 	Start      bool
-	PatternMap *ImagePatternMap
+	JobConfigs []JobConfig
 	Server     *mq.Server
 }
 
+type JobConfig struct {
+	Name        string      `name`
+	Pattern     string      `pattern`
+	Image       string      `image`
+	ImageConfig interface{} `image_config`
+}
+
 // NewSQSHandler creates new SQSHandler instance
-func NewSQSHandler(queueURL string, start bool) *SQSHandler {
+func NewSQSHandler(queueURL string) *SQSHandler {
 	sqsHandler := new(SQSHandler)
 	sqsHandler.QueueURL = queueURL
-	sqsHandler.PatternMap = GetNewImagePatternMap()
+	//sqsHandler.PatternMap = GetNewImagePatternMap()
 	return sqsHandler
 }
 
 // StartServer starts a server
 func (handler *SQSHandler) StartServer() error {
+	// return nil if the server already start
 	if handler.Server != nil {
 		return nil
 	}
+
 	fmt.Println("Start a new server")
 	newClient, err := NewSQSClient()
 	if err != nil {
@@ -57,9 +67,10 @@ func (handler *SQSHandler) ShutdownServer() {
 }
 
 // HandleSQSMessage handles SQS message
-// This fuction takes a sqs message as input, extract the url of the object
-// then match with filter pattern to decide which image need to be pulled
-// to handle the s3 object
+//
+// It takes a sqs message as input, extract the object urls and
+// decide which image need to be pulled to handle the s3 object
+// based on the object url
 func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 	mapping := make(map[string][]interface{})
 	msgBody := aws.StringValue(m.SQSMessage.Body)
@@ -68,12 +79,17 @@ func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 	}
 	records := mapping["Records"]
 	for _, record := range records {
-		bucket, err := GetValueFromDict(record.(map[string]interface{}), []string{"s3", "bucket", "name"})
+		recordByte, err := json.Marshal(record)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		key, err := GetValueFromDict(record.(map[string]interface{}), []string{"s3", "object", "key"})
+		bucket, err := GetValueFromJson(recordByte, []string{"s3", "bucket", "name"})
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		key, err := GetValueFromJson(recordByte, []string{"s3", "object", "key"})
 		if err != nil {
 			log.Println(err)
 			continue
@@ -85,10 +101,10 @@ func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 
 		fmt.Println("Processing: ", objectPath)
 
-		for pattern, handleImage := range handler.PatternMap.Mapping {
-			re := regexp.MustCompile(pattern)
+		for _, jobConfig := range handler.JobConfigs {
+			re := regexp.MustCompile(jobConfig.Pattern)
 			if re.MatchString(objectPath) {
-				result, err := createK8sJob(objectPath, handleImage, "indexing")
+				result, err := createK8sJob(objectPath, jobConfig)
 				if err != nil {
 					log.Println(err)
 					return err
@@ -104,4 +120,38 @@ func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 		}
 	}
 	return nil
+}
+
+func (handler *SQSHandler) addNewJobConfig(jsonBytes []byte) error {
+	jobConfig := JobConfig{}
+	if err := json.Unmarshal(jsonBytes, &jobConfig); err != nil {
+		return err
+	}
+	if jobConfig.Name != "" && jobConfig.Image != "" {
+		handler.JobConfigs = append(handler.JobConfigs, jobConfig)
+	} else {
+		return errors.New("Do not provide name and image")
+	}
+	return nil
+}
+
+func (handler *SQSHandler) deleteJobConfig(pattern string) error {
+	for idx, job := range handler.JobConfigs {
+		if job.Pattern == pattern {
+			handler.JobConfigs = append(handler.JobConfigs[:idx], handler.JobConfigs[idx+1:]...)
+		}
+	}
+	return nil
+}
+
+func (handler *SQSHandler) listAllJobConfigs() (string, error) {
+	str := ""
+	for _, job := range handler.JobConfigs {
+		jsonBytes, err := json.Marshal(job)
+		if err != nil {
+			return "", err
+		}
+		str = str + string(jsonBytes) + ","
+	}
+	return "[" + str + "]", nil
 }

@@ -3,9 +3,12 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -71,34 +74,25 @@ func getJobStatusByID(jobid string) (*JobInfo, error) {
 	return &ji, nil
 }
 
+// delete job along with dependencies by job id
+// it should be called when job's status is completed
 func deleteJobByID(jobid string, afterSeconds int64) error {
+
 	client := getJobClient()
 	job, err := getJobByID(client, jobid)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("=======================\n\nStart to delete job %s\n", job.Name)
+
 	deleteOption := metav1.NewDeleteOptions(afterSeconds)
-	//deleteOption := metav1.DeleteOptions{"deleteOption": 10}
 
 	var deletionPropagation metav1.DeletionPropagation = "Background"
-
-	// orphanDependents := true
-	// deleteOption.OrphanDependents = &orphanDependents
-	deleteOption.PropagationPolicy = &deletionPropagation //metav1.DeletePropagationBackground
-	// metav1.DeletionPropagation.
+	deleteOption.PropagationPolicy = &deletionPropagation
 
 	if err = client.Delete(job.Name, deleteOption); err != nil {
 		fmt.Println(err)
 	}
 
-	// fmt.Printf("=======================\n\nStart to delete job ")
-	// if err = client.Delete(job.Name, metav1.NewDeleteOptions(afterSeconds)); err != nil {
-	// 	fmt.Println(err)
-	// }
-
-	// timestamp := metav1.NewTime(time.Now().Add(time.Duration(afterSeconds) * time.Second))
-	// job.SetDeletionTimestamp(&timestamp)
 	return nil
 
 }
@@ -151,26 +145,41 @@ func isResourceAvailbility(prefix string) bool {
 			if job.Status == "Running" {
 				nJobRunning++
 			} else if job.Status == "Completed" {
-				deleteJobByID(job.UID, GRACE_PERIOD)
+				deleteJobByID(job.UID, 1)
 			}
 		}
 	}
-
-	return nJobRunning < JOB_NUM_MAX
+	maxJobNum, err := strconv.Atoi(os.Getenv("JOB_NUM_MAX"))
+	if err != nil {
+		log.Panicln("JOB_NUM_MAX env is not set corectly")
+	}
+	return nJobRunning < maxJobNum
 
 }
 
-func createK8sJob(inputURL string, image string, prefix string) (*JobInfo, error) {
-	// if number of running jobs get larger than limit, return error
-	// so that the inputURL is put back to SQS. Don't need to sleep since
-	// SQS has a timeout already
-	if !isResourceAvailbility(prefix) {
-		return nil, errors.New("Number of running jobs get the max threshold")
+func createK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
+	// if number of running jobs is larger than predefined JOB_NUM_MAX, return error
+	// so that the inputURL is put back to SQS.
+	if !isResourceAvailbility(jobConfig.Name) {
+		return nil, errors.New("Number of running jobs is bigger than JOB_NUM_MAX")
 	}
+
+	// Skip all checking errors since aws cred file was properly loaded already
+	credBytes, _ := ReadFile(CREDENTIAL_PATH)
+	regionIf, _ := GetValueFromJson(credBytes, []string{"AWS", "region"})
+	accessKeyIf, _ := GetValueFromJson(credBytes, []string{"AWS", "aws_access_key_id"})
+	secretKeyIf, _ := GetValueFromJson(credBytes, []string{"AWS", "aws_secret_access_key"})
+
+	configBytes, err := json.Marshal(jobConfig.ImageConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	configString := string(configBytes)
 
 	jobsClient := getJobClient()
 	randname, _ := GetRandString(5)
-	name := fmt.Sprintf("%s-%s", prefix, randname)
+	name := fmt.Sprintf("%s-%s", jobConfig.Name, randname)
 	fmt.Println("job input URL: ", inputURL)
 	var deadline int64 = 600
 	// For an example of how to create jobs, see this file:
@@ -201,7 +210,7 @@ func createK8sJob(inputURL string, image string, prefix string) (*JobInfo, error
 					Containers: []k8sv1.Container{
 						{
 							Name:  "job-task",
-							Image: image,
+							Image: jobConfig.Image,
 							SecurityContext: &k8sv1.SecurityContext{
 								Privileged: &falseVal,
 							},
@@ -210,6 +219,22 @@ func createK8sJob(inputURL string, image string, prefix string) (*JobInfo, error
 								{
 									Name:  "INPUT_URL",
 									Value: inputURL,
+								},
+								{
+									Name:  "AWS_REGION",
+									Value: regionIf.(string),
+								},
+								{
+									Name:  "AWS_ACCESS_KEY_ID",
+									Value: accessKeyIf.(string),
+								},
+								{
+									Name:  "AWS_SECRET_ACCESS_KEY",
+									Value: secretKeyIf.(string),
+								},
+								{
+									Name:  "IMAGE_CONFIG",
+									Value: configString,
 								},
 							},
 							VolumeMounts: []k8sv1.VolumeMount{},
