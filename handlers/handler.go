@@ -57,13 +57,14 @@ func (handler *SQSHandler) StartServer() error {
 }
 
 // ShutdownServer shutdowns a server
-func (handler *SQSHandler) ShutdownServer() {
+func (handler *SQSHandler) ShutdownServer() error {
 	fmt.Println("Shutdown the server")
 	if handler.Server == nil {
-		return
+		return nil
 	}
-	handler.Server.Shutdown(context.Background())
+	err := handler.Server.Shutdown(context.Background())
 	handler.Server = nil
+	return err
 }
 
 // HandleSQSMessage handles SQS message
@@ -130,7 +131,8 @@ func (handler *SQSHandler) addNewJobConfig(jsonBytes []byte) error {
 	if jobConfig.Name != "" && jobConfig.Image != "" {
 		handler.JobConfigs = append(handler.JobConfigs, jobConfig)
 	} else {
-		return errors.New("Do not provide name and image")
+
+		return errors.New("Name and image args are required\n;")
 	}
 	return nil
 }
@@ -139,9 +141,10 @@ func (handler *SQSHandler) deleteJobConfig(pattern string) error {
 	for idx, job := range handler.JobConfigs {
 		if job.Pattern == pattern {
 			handler.JobConfigs = append(handler.JobConfigs[:idx], handler.JobConfigs[idx+1:]...)
+			return nil
 		}
 	}
-	return nil
+	return fmt.Errorf("There is no job with provided pattern\n %s", pattern)
 }
 
 func (handler *SQSHandler) listAllJobConfigs() (string, error) {

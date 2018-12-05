@@ -165,7 +165,7 @@ func createK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	}
 
 	// Skip all checking errors since aws cred file was properly loaded already
-	credBytes, _ := ReadFile(CREDENTIAL_PATH)
+	credBytes, _ := ReadFile(Lookup_cred_file())
 	regionIf, _ := GetValueFromJson(credBytes, []string{"AWS", "region"})
 	accessKeyIf, _ := GetValueFromJson(credBytes, []string{"AWS", "aws_access_key_id"})
 	secretKeyIf, _ := GetValueFromJson(credBytes, []string{"AWS", "aws_secret_access_key"})
@@ -233,7 +233,7 @@ func createK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 									Value: secretKeyIf.(string),
 								},
 								{
-									Name:  "IMAGE_CONFIG",
+									Name:  "CONFIG_FILE",
 									Value: configString,
 								},
 							},

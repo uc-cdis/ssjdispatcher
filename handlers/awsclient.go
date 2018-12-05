@@ -17,15 +17,14 @@ type AWSCredentials struct {
 
 // NewSQSClient create new SQSAPI client
 func NewSQSClient() (sqsiface.SQSAPI, error) {
-	cred, err := loadCredentialFromConfigFile(CREDENTIAL_PATH)
+	cred, err := loadCredentialFromConfigFile(Lookup_cred_file())
 	if err != nil {
 		return nil, err
 	}
 
-	config := aws.NewConfig()
+	config := aws.NewConfig().WithRegion(cred.region).
+		WithCredentials(credentials.NewStaticCredentials(cred.awsAccessKeyID, cred.awsSecretAccessKey, ""))
 
-	config = config.WithRegion(cred.region)
-	config = config.WithCredentials(credentials.NewStaticCredentials(cred.awsAccessKeyID, cred.awsSecretAccessKey, ""))
 	return sqs.New(session.New(config)), nil
 }
 

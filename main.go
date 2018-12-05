@@ -23,15 +23,15 @@ import (
 )
 
 func main() {
-	jsonBytes, err := handlers.ReadFile(handlers.CREDENTIAL_PATH)
+	jsonBytes, err := handlers.ReadFile(handlers.Lookup_cred_file())
 	if err != nil {
-		log.Println("Can not read credential file. Continue anyway!")
+		log.Println("Can not read credential file!")
 		return
 	}
 
 	var sqsURL string
 	if sqs, err := handlers.GetValueFromJson(jsonBytes, []string{"SQS", "url"}); err != nil {
-		log.Println("Can not read SQS url from credential file. Continue anyway!")
+		log.Println("Can not read SQS url from credential file!")
 		return
 	} else {
 		sqsURL = sqs.(string)

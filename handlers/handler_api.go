@@ -18,9 +18,17 @@ func (handler *SQSHandler) ServiceHandler(w http.ResponseWriter, r *http.Request
 	if r.Method == "PUT" {
 		val := r.URL.Query().Get("start")
 		if val == "true" {
-			handler.StartServer()
+			if err := handler.StartServer(); err != nil {
+				fmt.Fprintf(w, fmt.Sprintf("Can not start a server. Detail %s", err))
+			} else {
+				fmt.Fprintf(w, "Successfully start a server")
+			}
 		} else if val == "false" {
-			handler.ShutdownServer()
+			if err := handler.ShutdownServer(); err != nil {
+				fmt.Fprintf(w, fmt.Sprintf("Can not shutdown the server. Detail %s", err))
+			} else {
+				fmt.Fprintf(w, "Successfully shutdown the server")
+			}
 		}
 
 	} else {
@@ -33,8 +41,18 @@ func (handler *SQSHandler) ServiceHandler(w http.ResponseWriter, r *http.Request
 func (handler *SQSHandler) SQSHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "PUT" {
 		handler.QueueURL = r.URL.Query().Get("url")
-		handler.ShutdownServer()
-		handler.StartServer()
+
+		if err := handler.ShutdownServer(); err != nil {
+			fmt.Fprintf(w, fmt.Sprintf("Can not shutdown the server. Detail %s", err))
+		} else {
+			fmt.Fprintf(w, "Successfully shutdown the server")
+		}
+
+		if err := handler.StartServer(); err != nil {
+			fmt.Fprintf(w, fmt.Sprintf("Can not start a server. Detail %s", err))
+		} else {
+			fmt.Fprintf(w, "Successfully start a server")
+		}
 
 	} else if r.Method == "GET" {
 		fmt.Fprintf(w, handler.QueueURL)
