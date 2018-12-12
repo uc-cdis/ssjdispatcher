@@ -216,7 +216,7 @@ func createK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 							SecurityContext: &k8sv1.SecurityContext{
 								Privileged: &falseVal,
 							},
-							ImagePullPolicy: k8sv1.PullPolicy(k8sv1.PullIfNotPresent),
+							ImagePullPolicy: k8sv1.PullPolicy(k8sv1.PullAlways),
 							Env: []k8sv1.EnvVar{
 								{
 									Name:  "INPUT_URL",
