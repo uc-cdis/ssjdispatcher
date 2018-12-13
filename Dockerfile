@@ -7,7 +7,7 @@ RUN go get -tags k8s.io/client-go/kubernetes \
     k8s.io/client-go/tools/clientcmd \
     k8s.io/client-go/rest
 
-# Build static arborist binary
+# Build static binary
 RUN mkdir -p /go/src/github.com/uc-cdis/ssjdispatcher
 WORKDIR /go/src/github.com/uc-cdis/ssjdispatcher
 ADD . .

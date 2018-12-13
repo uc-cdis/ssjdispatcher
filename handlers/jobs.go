@@ -182,6 +182,8 @@ func createK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	name := fmt.Sprintf("%s-%s", jobConfig.Name, randname)
 	fmt.Println("job input URL: ", inputURL)
 	var deadline int64 = 600
+	labels := make(map[string]string)
+	labels["app"] = "ssjdispatcher"
 	// For an example of how to create jobs, see this file:
 	// https://github.com/pachyderm/pachyderm/blob/805e63/src/server/pps/server/api_server.go#L2320-L2345
 	batchJob := &batchv1.Job{
@@ -191,7 +193,7 @@ func createK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
-			Labels: make(map[string]string),
+			Labels: labels,
 		},
 		Spec: batchv1.JobSpec{
 			// Optional: Parallelism:,
@@ -203,7 +205,7 @@ func createK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 			Template: k8sv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   name,
-					Labels: make(map[string]string),
+					Labels: labels,
 				},
 				Spec: k8sv1.PodSpec{
 					InitContainers: []k8sv1.Container{}, // Doesn't seem obligatory(?)...
@@ -214,7 +216,7 @@ func createK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 							SecurityContext: &k8sv1.SecurityContext{
 								Privileged: &falseVal,
 							},
-							ImagePullPolicy: k8sv1.PullPolicy(k8sv1.PullIfNotPresent),
+							ImagePullPolicy: k8sv1.PullPolicy(k8sv1.PullAlways),
 							Env: []k8sv1.EnvVar{
 								{
 									Name:  "INPUT_URL",
