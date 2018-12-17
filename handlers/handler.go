@@ -72,8 +72,12 @@ func (handler *SQSHandler) ShutdownServer() error {
 getObjectFromSQSMessage returns s3 object from sqs message
 
 The format of a SQS message body:
-
-	{"Records":[
+{
+	"Type" : "Notification",
+  	"MessageId" : "f0207b9c-7255-5f61-998a-2f0e64c6eef0",
+	"TopicArn" : "arn:aws:sns:us-east-1:707,
+	"Subject" : "Amazon S3 Notification",
+	"Message":  {"Records":[
 		{"eventVersion":"2.0","eventSource":"aws:s3","awsRegion":"us-east-1",
 		"eventTime":"2018-11-19T00:57:57.693Z","eventName":"ObjectCreated:Put",
 		"userIdentity":{"principalId":"AWS:AIDAIU3LRUEK5OHS6FXRQ"},
@@ -84,18 +88,28 @@ The format of a SQS message body:
 		"bucket":{"name":"xssxs","ownerIdentity":{"principalId":"A365FU9MXCCF0S"},
 		"arn":"arn:aws:s3:::xssxs"},"object":{"key":"api.py","size":8005,"eTag":"b4ef93035ff791f7d507a47342c89cd6",
 		"sequencer":"005BF20A95A51A4C46"}}}]}
+	}
+}
 */
 
 func getObjectsFromSQSMessage(m *mq.Message) []string {
 	objectPaths := make([]string, 0)
 	mapping := make(map[string][]interface{})
 	msgBody := aws.StringValue(m.SQSMessage.Body)
-	if err := json.Unmarshal([]byte(msgBody), &mapping); err != nil {
-		glog.Errorln("The message is not the one from the bucket CRUD events. Detail ", err)
+
+	msgBodyInf, err := GetValueFromJSON([]byte(msgBody), []string{"Message"})
+	if err != nil {
+		glog.Infoln("The message is not the one from the bucket POST/PUT events. Detail ", err)
 		return objectPaths
 	}
-	records := mapping["Records"]
 
+	msgBody2 := msgBodyInf.(string)
+	if err := json.Unmarshal([]byte(msgBody2), &mapping); err != nil {
+		glog.Infoln("The message is not the one from the bucket POST/PUT events. Detail ", err)
+		return objectPaths
+	}
+
+	records := mapping["Records"]
 	for _, record := range records {
 		recordByte, err := json.Marshal(record)
 		if err != nil {
