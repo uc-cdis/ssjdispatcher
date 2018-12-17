@@ -103,6 +103,9 @@ func listJobs(jc batchtypev1.JobInterface) JobsArray {
 	}
 
 	for _, job := range jobsList.Items {
+		if job.Labels["app"] != "ssjdispatcherjob" {
+			continue
+		}
 		ji := JobInfo{}
 		ji.Name = job.Name
 		ji.UID = string(job.GetUID())
@@ -136,7 +139,7 @@ func RemoveCompletedJobs(prefixList []string) {
 	jobs := listJobs(getJobClient())
 	for i := 0; i < len(jobs.JobInfo); i++ {
 		job := jobs.JobInfo[i]
-		if StringContainsPrefixInSlice(job.Name, prefixList) && job.Status == "Completed" {
+		if job.Status == "Completed" {
 			deleteJobByID(job.UID, GRACE_PERIOD)
 		}
 	}
@@ -148,7 +151,7 @@ func GetNumberRunningJobs(prefixList []string) int {
 	nRunningJobs := 0
 	for i := 0; i < len(jobs.JobInfo); i++ {
 		job := jobs.JobInfo[i]
-		if StringContainsPrefixInSlice(job.Name, prefixList) && job.Status == "Running" {
+		if job.Status == "Running" {
 			nRunningJobs++
 		}
 	}
@@ -177,7 +180,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	glog.Infoln("job input URL: ", inputURL)
 	var deadline int64 = 600
 	labels := make(map[string]string)
-	labels["app"] = "ssjdispatcher"
+	labels["app"] = "ssjdispatcherjob"
 	// For an example of how to create jobs, see this file:
 	// https://github.com/pachyderm/pachyderm/blob/805e63/src/server/pps/server/api_server.go#L2320-L2345
 	batchJob := &batchv1.Job{

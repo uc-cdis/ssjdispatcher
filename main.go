@@ -76,9 +76,9 @@ func main() {
 	SQSHandler.RegisterSQSHandler()
 
 	handlers.RegisterJob()
-	handlers.RegisterSystem(SQSHandler)
+	handlers.RegisterSystem()
 
-	log.Fatal(http.ListenAndServe("0.0.0.0:80", nil))
+	log.Fatal(http.ListenAndServe("0.0.0.0:8000", nil))
 
 	glog.Flush()
 }
