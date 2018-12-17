@@ -148,8 +148,8 @@ on their url and jobConfig list. If the number is larger than the availbility
 of jobpool, the service will take a sleep until the resource is available.
 
 If the function returns an error other than nil, the message is put back
-to the queue and retry later (handled by `md` library). That makes sure the message is properly handle
-before it actually deleted
+to the queue and retry later (handled by `md` library). That makes sure
+the message is properly handle before it actually deleted
 
 */
 func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
