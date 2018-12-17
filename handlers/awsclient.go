@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/golang/glog"
 )
 
 // S3Credentials contains AWS credentials
@@ -17,7 +18,7 @@ type AWSCredentials struct {
 
 // NewSQSClient create new SQSAPI client
 func NewSQSClient() (sqsiface.SQSAPI, error) {
-	cred, err := loadCredentialFromConfigFile(Lookup_cred_file())
+	cred, err := loadCredentialFromConfigFile(LookupCredFile())
 	if err != nil {
 		return nil, err
 	}
@@ -37,20 +38,20 @@ func loadCredentialFromConfigFile(path string) (*AWSCredentials, error) {
 		return nil, err
 	}
 
-	if region, err := GetValueFromJson(jsonBytes, []string{"AWS", "region"}); err != nil {
-		panic("Can not read region from credential file")
+	if region, err := GetValueFromJSON(jsonBytes, []string{"AWS", "region"}); err != nil {
+		glog.Fatalln("Can not read region from credential file")
 	} else {
 		credentials.region = region.(string)
 	}
 
-	if awsKeyID, err := GetValueFromJson(jsonBytes, []string{"AWS", "aws_access_key_id"}); err != nil {
-		panic("Can not read aws key from credential file")
+	if awsKeyID, err := GetValueFromJSON(jsonBytes, []string{"AWS", "aws_access_key_id"}); err != nil {
+		glog.Fatalln("Can not read aws key from credential file")
 	} else {
 		credentials.awsAccessKeyID = awsKeyID.(string)
 	}
 
-	if awsSecret, err := GetValueFromJson(jsonBytes, []string{"AWS", "aws_secret_access_key"}); err != nil {
-		panic("Can not read aws key from credential file")
+	if awsSecret, err := GetValueFromJSON(jsonBytes, []string{"AWS", "aws_secret_access_key"}); err != nil {
+		glog.Fatalln("Can not read aws key from credential file")
 	} else {
 		credentials.awsSecretAccessKey = awsSecret.(string)
 	}

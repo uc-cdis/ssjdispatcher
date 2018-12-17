@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"regexp"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/golang/glog"
 	mq "github.com/remind101/mq-go"
 )
 
@@ -67,63 +68,122 @@ func (handler *SQSHandler) ShutdownServer() error {
 	return err
 }
 
-// HandleSQSMessage handles SQS message
-//
-// It takes a sqs message as input, extract the object urls and
-// decide which image need to be pulled to handle the s3 object
-// based on the object url
-func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
+/*
+getObjectFromSQSMessage returns s3 object from sqs message
+
+The format of a SQS message body:
+
+	{"Records":[
+		{"eventVersion":"2.0","eventSource":"aws:s3","awsRegion":"us-east-1",
+		"eventTime":"2018-11-19T00:57:57.693Z","eventName":"ObjectCreated:Put",
+		"userIdentity":{"principalId":"AWS:AIDAIU3LRUEK5OHS6FXRQ"},
+		"requestParameters":{"sourceIPAddress":"173.24.34.163"},
+		"responseElements":{"x-amz-request-id":"91CF670A054E0332",
+		"x-amz-id-2":"h0ZQgg6w2qzKUkzivRizP1E1Jf9QAXSu1bUllWaF2b7j/63XRgjGLMNyI7sl016QKSaxK1L2RrI="},
+		"s3":{"s3SchemaVersion":"1.0","configurationId":"Giang Bui",
+		"bucket":{"name":"xssxs","ownerIdentity":{"principalId":"A365FU9MXCCF0S"},
+		"arn":"arn:aws:s3:::xssxs"},"object":{"key":"api.py","size":8005,"eTag":"b4ef93035ff791f7d507a47342c89cd6",
+		"sequencer":"005BF20A95A51A4C46"}}}]}
+*/
+
+func getObjectsFromSQSMessage(m *mq.Message) []string {
+	objectPaths := make([]string, 0)
 	mapping := make(map[string][]interface{})
 	msgBody := aws.StringValue(m.SQSMessage.Body)
 	if err := json.Unmarshal([]byte(msgBody), &mapping); err != nil {
-		return err
+		glog.Errorln("The message is not the one from the bucket CRUD events. Detail ", err)
+		return objectPaths
 	}
 	records := mapping["Records"]
+
 	for _, record := range records {
 		recordByte, err := json.Marshal(record)
 		if err != nil {
-			log.Println(err)
+			glog.Errorln(err)
 			continue
 		}
-		bucket, err := GetValueFromJson(recordByte, []string{"s3", "bucket", "name"})
+		bucket, err := GetValueFromJSON(recordByte, []string{"s3", "bucket", "name"})
 		if err != nil {
-			log.Println(err)
+			glog.Errorln(err)
 			continue
 		}
-		key, err := GetValueFromJson(recordByte, []string{"s3", "object", "key"})
+		key, err := GetValueFromJSON(recordByte, []string{"s3", "object", "key"})
 		if err != nil {
-			log.Println(err)
+			glog.Errorln(err)
 			continue
 		}
 		bucketName := bucket.(string)
 		keyName := key.(string)
 
-		objectPath := "s3://" + bucketName + "/" + keyName
+		objectPaths = append(objectPaths, "s3://"+bucketName+"/"+keyName)
+	}
 
-		fmt.Println("Processing: ", objectPath)
+	return objectPaths
+}
 
+/*
+HandleSQSMessage handles SQS message
+
+The function takes a sqs message as input, extract the object urls and
+decide which image need to be pulled to handle the s3 object
+based on the object url
+
+A SQS message may contains multiple records. The service goes though all
+the records and compute the number of records need to be processed base
+on their url and jobConfig list. If the number is larger than the availbility
+of jobpool, the service will take a sleep until the resource is available.
+
+If the function returns an error other than nil, the message is put back
+to the queue and retry later (handled by `md` library). That makes sure the message is properly handle
+before it actually deleted
+
+*/
+func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
+	objectPaths := getObjectsFromSQSMessage(m)
+
+	jobNameList := make([]string, 0)
+	for _, jobConfig := range handler.JobConfigs {
+		jobNameList = append(jobNameList, jobConfig.Name)
+	}
+
+	// remove completed jobs
+	RemoveCompletedJobs(jobNameList)
+
+	jobMap := make(map[string]JobConfig)
+	for _, objectPath := range objectPaths {
 		for _, jobConfig := range handler.JobConfigs {
 			re := regexp.MustCompile(jobConfig.Pattern)
 			if re.MatchString(objectPath) {
-				result, err := createK8sJob(objectPath, jobConfig)
-				if err != nil {
-					log.Println(err)
-					return err
-				}
-				out, err := json.Marshal(result)
-				if err != nil {
-					log.Println(err)
-					return err
-				}
-				log.Println(string(out))
+				jobMap[objectPath] = jobConfig
 			}
-
 		}
 	}
+
+	for len(jobMap)+GetNumberRunningJobs(jobNameList) > GetMaxJobConfig() {
+		time.Sleep(5 * time.Second)
+	}
+
+	glog.Infof("Start to run %d jobs", len(jobMap))
+
+	for objectPath, jobConfig := range jobMap {
+		glog.Info("Processing: ", objectPath)
+		result, err := CreateK8sJob(objectPath, jobConfig)
+		if err != nil {
+			glog.Errorln(err)
+			return err
+		}
+		out, err := json.Marshal(result)
+		if err != nil {
+			glog.Errorln(err)
+			return err
+		}
+		glog.Info(string(out))
+	}
+
 	return nil
 }
 
-func (handler *SQSHandler) addNewJobConfig(jsonBytes []byte) error {
+func (handler *SQSHandler) handleAddNewJobConfig(jsonBytes []byte) error {
 	jobConfig := JobConfig{}
 	if err := json.Unmarshal(jsonBytes, &jobConfig); err != nil {
 		return err
@@ -132,12 +192,12 @@ func (handler *SQSHandler) addNewJobConfig(jsonBytes []byte) error {
 		handler.JobConfigs = append(handler.JobConfigs, jobConfig)
 	} else {
 
-		return errors.New("Name and image args are required\n;")
+		return errors.New("Name and image args are required")
 	}
 	return nil
 }
 
-func (handler *SQSHandler) deleteJobConfig(pattern string) error {
+func (handler *SQSHandler) handleDeleteJobConfig(pattern string) error {
 	for idx, job := range handler.JobConfigs {
 		if job.Pattern == pattern {
 			handler.JobConfigs = append(handler.JobConfigs[:idx], handler.JobConfigs[idx+1:]...)
@@ -147,7 +207,7 @@ func (handler *SQSHandler) deleteJobConfig(pattern string) error {
 	return fmt.Errorf("There is no job with provided pattern\n %s", pattern)
 }
 
-func (handler *SQSHandler) listAllJobConfigs() (string, error) {
+func (handler *SQSHandler) handleListJobConfigs() (string, error) {
 	str := ""
 	for _, job := range handler.JobConfigs {
 		jsonBytes, err := json.Marshal(job)

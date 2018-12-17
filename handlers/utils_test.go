@@ -41,24 +41,24 @@ func makeTestJson() string {
 func TestUtils(t *testing.T) {
 
 	jsonStr := makeTestJson()
-	regionInf, err := GetValueFromJson([]byte(jsonStr), []string{"AWS", "region"})
+	regionInf, err := GetValueFromJSON([]byte(jsonStr), []string{"AWS", "region"})
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 	assert.Equal(t, regionInf.(string), "us-east-1")
 
-	accessKeyInf, err := GetValueFromJson([]byte(jsonStr), []string{"AWS", "aws_access_key_id"})
+	accessKeyInf, err := GetValueFromJSON([]byte(jsonStr), []string{"AWS", "aws_access_key_id"})
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 	assert.Equal(t, accessKeyInf.(string), "access_key_test")
 
-	_, err = GetValueFromJson([]byte(jsonStr), []string{"AWS", "wrong_field"})
+	_, err = GetValueFromJSON([]byte(jsonStr), []string{"AWS", "wrong_field"})
 	if err == nil {
 		t.Fatal(errors.New("err should not nil"))
 	}
 
-	jobInterfaces, err := GetValueFromJson([]byte(jsonStr), []string{"JOBS"})
+	jobInterfaces, err := GetValueFromJSON([]byte(jsonStr), []string{"JOBS"})
 	if err != nil {
 		t.Fatal(err)
 	}

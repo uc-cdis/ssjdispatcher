@@ -1,15 +1,11 @@
 package handlers
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
 	"os"
-	"strconv"
-	"strings"
+
+	"github.com/golang/glog"
 
 	batchv1 "k8s.io/api/batch/v1"
 	k8sv1 "k8s.io/api/core/v1"
@@ -90,7 +86,7 @@ func deleteJobByID(jobid string, afterSeconds int64) error {
 	deleteOption.PropagationPolicy = &deletionPropagation
 
 	if err = client.Delete(job.Name, deleteOption); err != nil {
-		fmt.Println(err)
+		glog.Infoln(err)
 	}
 
 	return nil
@@ -135,40 +131,38 @@ func jobStatusToString(status *batchv1.JobStatus) string {
 	return "Unknown"
 }
 
-func isResourceAvailbility(prefix string) bool {
-
+// RemoveCompletedJobs removes all completed k8s jobs dispatched by the service
+func RemoveCompletedJobs(prefixList []string) {
 	jobs := listJobs(getJobClient())
-	nJobRunning := 0
 	for i := 0; i < len(jobs.JobInfo); i++ {
 		job := jobs.JobInfo[i]
-		if strings.HasPrefix(job.Name, prefix) {
-			if job.Status == "Running" {
-				nJobRunning++
-			} else if job.Status == "Completed" {
-				deleteJobByID(job.UID, 1)
-			}
+		if StringContainsPrefixInSlice(job.Name, prefixList) && job.Status == "Completed" {
+			deleteJobByID(job.UID, GRACE_PERIOD)
 		}
 	}
-	maxJobNum, err := strconv.Atoi(os.Getenv("JOB_NUM_MAX"))
-	if err != nil {
-		log.Panicln("JOB_NUM_MAX env is not set corectly")
-	}
-	return nJobRunning < maxJobNum
-
 }
 
-func createK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
-	// if number of running jobs is larger than predefined JOB_NUM_MAX, return error
-	// so that the inputURL is put back to SQS.
-	if !isResourceAvailbility(jobConfig.Name) {
-		return nil, errors.New("Number of running jobs is bigger than JOB_NUM_MAX")
+// GetNumberRunningJobs returns number of k8s running jobs dispatched by the service
+func GetNumberRunningJobs(prefixList []string) int {
+	jobs := listJobs(getJobClient())
+	nRunningJobs := 0
+	for i := 0; i < len(jobs.JobInfo); i++ {
+		job := jobs.JobInfo[i]
+		if StringContainsPrefixInSlice(job.Name, prefixList) && job.Status == "Running" {
+			nRunningJobs++
+		}
 	}
+	return nRunningJobs
+}
+
+// CreateK8sJob creates a k8s job to handle s3 object
+func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 
 	// Skip all checking errors since aws cred file was properly loaded already
-	credBytes, _ := ReadFile(Lookup_cred_file())
-	regionIf, _ := GetValueFromJson(credBytes, []string{"AWS", "region"})
-	accessKeyIf, _ := GetValueFromJson(credBytes, []string{"AWS", "aws_access_key_id"})
-	secretKeyIf, _ := GetValueFromJson(credBytes, []string{"AWS", "aws_secret_access_key"})
+	credBytes, _ := ReadFile(LookupCredFile())
+	regionIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "region"})
+	accessKeyIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "aws_access_key_id"})
+	secretKeyIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "aws_secret_access_key"})
 
 	configBytes, err := json.Marshal(jobConfig.ImageConfig)
 	if err != nil {
@@ -178,9 +172,9 @@ func createK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	configString := string(configBytes)
 
 	jobsClient := getJobClient()
-	randname, _ := GetRandString(5)
+	randname := GetRandString(5)
 	name := fmt.Sprintf("%s-%s", jobConfig.Name, randname)
-	fmt.Println("job input URL: ", inputURL)
+	glog.Infoln("job input URL: ", inputURL)
 	var deadline int64 = 600
 	labels := make(map[string]string)
 	labels["app"] = "ssjdispatcher"
@@ -255,19 +249,10 @@ func createK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("New job name: ", newJob.Name)
+	glog.Infoln("New job name: ", newJob.Name)
 	ji := JobInfo{}
 	ji.Name = newJob.Name
 	ji.UID = string(newJob.GetUID())
 	ji.Status = jobStatusToString(&newJob.Status)
 	return &ji, nil
-}
-
-// GetRandString returns a random string of lenght N
-func GetRandString(n int) (string, error) {
-	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return strings.ToLower(base64.RawURLEncoding.EncodeToString(b)), nil
 }

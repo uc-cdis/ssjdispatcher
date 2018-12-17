@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// RegisterSystem
 func RegisterSystem() {
 	http.HandleFunc("/_status", systemStatus)
 }
