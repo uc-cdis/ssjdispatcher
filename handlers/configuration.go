@@ -26,5 +26,5 @@ func GetMaxJobConfig() int {
 }
 
 const (
-	GRACE_PERIOD int64 = 3600 // grace period in seconds before a job is deleted
+	GRACE_PERIOD int64 = 1 // grace period in seconds before a job is deleted
 )
