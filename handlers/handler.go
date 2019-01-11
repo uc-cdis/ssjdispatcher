@@ -173,13 +173,12 @@ func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 		}
 	}
 
-	for len(jobMap)+GetNumberRunningJobs(jobNameList) > GetMaxJobConfig() {
-		time.Sleep(5 * time.Second)
-	}
-
 	glog.Infof("Start to run %d jobs", len(jobMap))
 
 	for objectPath, jobConfig := range jobMap {
+		for GetNumberRunningJobs(jobNameList) > GetMaxJobConfig() {
+			time.Sleep(5 * time.Second)
+		}
 		glog.Info("Processing: ", objectPath)
 		result, err := CreateK8sJob(objectPath, jobConfig)
 		if err != nil {
