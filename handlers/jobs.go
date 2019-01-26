@@ -217,9 +217,8 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 							ImagePullPolicy: k8sv1.PullPolicy(k8sv1.PullAlways),
 							Resources: k8sv1.ResourceRequirements{
 								Requests: k8sv1.ResourceList{
-									k8sv1.ResourceCPU:     resource.MustParse(jobConfig.RequestCPU),
-									k8sv1.ResourceMemory:  resource.MustParse(jobConfig.RequestMem),
-									k8sv1.ResourceStorage: resource.MustParse(jobConfig.RequestStorage),
+									k8sv1.ResourceCPU:    resource.MustParse(jobConfig.RequestCPU),
+									k8sv1.ResourceMemory: resource.MustParse(jobConfig.RequestMem),
 								},
 							},
 							Env: []k8sv1.EnvVar{
