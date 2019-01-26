@@ -163,7 +163,7 @@ func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 	}
 
 	// remove completed jobs
-	//RemoveCompletedJobs(jobNameList)
+	RemoveCompletedJobs(jobNameList)
 
 	jobMap := make(map[string]JobConfig)
 	for _, objectPath := range objectPaths {
