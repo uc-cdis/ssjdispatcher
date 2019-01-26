@@ -9,6 +9,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	k8sv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	batchtypev1 "k8s.io/client-go/kubernetes/typed/batch/v1"
@@ -214,6 +215,13 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 								Privileged: &falseVal,
 							},
 							ImagePullPolicy: k8sv1.PullPolicy(k8sv1.PullAlways),
+							Resources: k8sv1.ResourceRequirements{
+								Requests: k8sv1.ResourceList{
+									k8sv1.ResourceCPU:     resource.MustParse(jobConfig.RequestCPU),
+									k8sv1.ResourceMemory:  resource.MustParse(jobConfig.RequestMem),
+									k8sv1.ResourceStorage: resource.MustParse(jobConfig.RequestStorage),
+								},
+							},
 							Env: []k8sv1.EnvVar{
 								{
 									Name:  "INPUT_URL",

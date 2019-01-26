@@ -21,10 +21,13 @@ type SQSHandler struct {
 }
 
 type JobConfig struct {
-	Name        string      `name`
-	Pattern     string      `pattern`
-	Image       string      `image`
-	ImageConfig interface{} `image_config`
+	Name           string      `name`
+	Pattern        string      `pattern`
+	Image          string      `image`
+	ImageConfig    interface{} `image_config`
+	RequestCPU     string      `request_cpu`
+	RequestMem     string      `request_mem`
+	RequestStorage string      `request_storage`
 }
 
 // NewSQSHandler creates new SQSHandler instance
@@ -161,7 +164,7 @@ func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 	}
 
 	// remove completed jobs
-	RemoveCompletedJobs(jobNameList)
+	//RemoveCompletedJobs(jobNameList)
 
 	jobMap := make(map[string]JobConfig)
 	for _, objectPath := range objectPaths {
