@@ -178,7 +178,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	randname := GetRandString(5)
 	name := fmt.Sprintf("%s-%s", jobConfig.Name, randname)
 	glog.Infoln("job input URL: ", inputURL)
-	var deadline int64 = 600
+	var deadline int64 = 3600
 	labels := make(map[string]string)
 	labels["app"] = "ssjdispatcherjob"
 	// For an example of how to create jobs, see this file:
