@@ -53,13 +53,15 @@ func (handler *SQSHandler) StartServer() error {
 	}), mq.WithClient(newClient))
 	handler.Server.Start()
 
+	go handler.StartMonitoringProcess()
+
 	return nil
 
 }
 
 func (handler *SQSHandler) StartMonitoringProcess() {
 	for {
-		glog.Infof("Number of jobs running: ", GetNumberRunningJobs())
+		glog.Infof("Number of jobs running: %d", GetNumberRunningJobs())
 		time.Sleep(5 * time.Second)
 
 	}
