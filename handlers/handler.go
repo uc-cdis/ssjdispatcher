@@ -57,6 +57,14 @@ func (handler *SQSHandler) StartServer() error {
 
 }
 
+func (handler *SQSHandler) StartMonitoringProcess() {
+	for {
+		glog.Infof("Number of jobs running: ", GetNumberRunningJobs())
+		time.Sleep(5 * time.Second)
+
+	}
+}
+
 // ShutdownServer shutdowns a server
 func (handler *SQSHandler) ShutdownServer() error {
 	fmt.Println("Shutdown the server")
@@ -161,7 +169,7 @@ func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 	}
 
 	// remove completed jobs
-	RemoveCompletedJobs(jobNameList)
+	RemoveCompletedJobs()
 
 	jobMap := make(map[string]JobConfig)
 	for _, objectPath := range objectPaths {
@@ -176,7 +184,7 @@ func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 	glog.Infof("Start to run %d jobs", len(jobMap))
 
 	for objectPath, jobConfig := range jobMap {
-		for GetNumberRunningJobs(jobNameList) > GetMaxJobConfig() {
+		for GetNumberRunningJobs() > GetMaxJobConfig() {
 			time.Sleep(5 * time.Second)
 		}
 		glog.Info("Processing: ", objectPath)
