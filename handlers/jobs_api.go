@@ -19,7 +19,7 @@ func status(w http.ResponseWriter, r *http.Request) {
 	}
 	UID := r.URL.Query().Get("UID")
 	if UID != "" {
-		result, errUID := getJobStatusByID(UID)
+		result, errUID := GetJobStatusByID(UID)
 		if errUID != nil {
 			http.Error(w, errUID.Error(), 500)
 			return

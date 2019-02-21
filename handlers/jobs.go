@@ -58,7 +58,7 @@ func getJobByID(jc batchtypev1.JobInterface, jobid string) (*batchv1.Job, error)
 	return nil, fmt.Errorf("job with jobid %s not found", jobid)
 }
 
-func getJobStatusByID(jobid string) (*JobInfo, error) {
+func GetJobStatusByID(jobid string) (*JobInfo, error) {
 	job, err := getJobByID(getJobClient(), jobid)
 	if err != nil {
 		return nil, err
