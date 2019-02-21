@@ -53,6 +53,8 @@ func (handler *SQSHandler) StartServer() error {
 	}), mq.WithClient(newClient))
 	handler.Server.Start()
 
+	handler.StartMonitoringProcess()
+
 	return nil
 
 }
