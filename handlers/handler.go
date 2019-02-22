@@ -28,6 +28,8 @@ type JobConfig struct {
 	Pattern     string      `pattern`
 	Image       string      `image`
 	ImageConfig interface{} `image_config`
+	RequestCPU  string      `request_cpu`
+	RequestMem  string      `request_mem`
 }
 
 // NewSQSHandler creates new SQSHandler instance
@@ -56,7 +58,7 @@ func (handler *SQSHandler) StartServer() error {
 	}), mq.WithClient(newClient))
 	handler.Server.Start()
 
-	handler.StartMonitoringProcess()
+	go handler.StartMonitoringProcess()
 
 	return nil
 
