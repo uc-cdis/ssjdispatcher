@@ -26,12 +26,9 @@ type JobsArray struct {
 }
 
 type JobInfo struct {
-	UID        string    `json:"uid"`
-	Name       string    `json:"name"`
-	Status     string    `json:"status"`
-	HandledURL string    `json:"handledurl"`
-	JobConf    JobConfig `json:"jobconf"`
-	Retries    int       `json:"retries"`
+	UID    string `json:"uid"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
 }
 
 func getJobClient() batchtypev1.JobInterface {
@@ -267,9 +264,6 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	ji := JobInfo{}
 	ji.Name = newJob.Name
 	ji.UID = string(newJob.GetUID())
-	ji.HandledURL = inputURL
-	ji.JobConf = jobConfig
 	ji.Status = jobStatusToString(&newJob.Status)
-	ji.Retries = 0
 	return &ji, nil
 }

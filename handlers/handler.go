@@ -80,18 +80,6 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 				glog.Infof("%s: %s", k8sJob.Name, k8sJob.Status)
 				if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" {
 					nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
-				} else if k8sJob.Status == "Failed" {
-					if jobInfo.Retries >= MAX_RETRIES {
-						glog.Infof("Can not process %s after multiple retries. Just give up!!!!", jobInfo.HandledURL)
-						continue
-					}
-					retryJobInfo, err := CreateK8sJob(jobInfo.HandledURL, jobInfo.JobConf)
-					if err != nil {
-						glog.Infof("Can not create k8s job for %s. Detail %s", jobInfo.HandledURL, err)
-					} else {
-						retryJobInfo.Retries = jobInfo.Retries + 1
-					}
-
 				}
 			}
 
