@@ -14,6 +14,8 @@ import (
 	mq "github.com/remind101/mq-go"
 )
 
+const MAX_RETRIES = 3
+
 type SQSHandler struct {
 	QueueURL      string
 	Start         bool
@@ -47,16 +49,17 @@ func (handler *SQSHandler) StartServer() error {
 		return nil
 	}
 
-	fmt.Println("Start a new server")
 	newClient, err := NewSQSClient()
 	if err != nil {
 		return err
 	}
 
+	glog.Info("Starting a new server...")
 	handler.Server = mq.NewServer(handler.QueueURL, mq.HandlerFunc(func(m *mq.Message) error {
 		return handler.HandleSQSMessage(m)
 	}), mq.WithClient(newClient))
 	handler.Server.Start()
+	glog.Info("The server is started")
 
 	go handler.StartMonitoringProcess()
 
@@ -77,6 +80,18 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 				glog.Infof("%s: %s", k8sJob.Name, k8sJob.Status)
 				if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" {
 					nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
+				} else if k8sJob.Status == "Failed" {
+					if jobInfo.Retries >= MAX_RETRIES {
+						glog.Infof("Can not process %s after multiple retries. Just give up!!!!", jobInfo.HandledURL)
+						continue
+					}
+					retryJobInfo, err := CreateK8sJob(jobInfo.HandledURL, jobInfo.JobConf)
+					if err != nil {
+						glog.Infof("Can not create k8s job for %s. Detail %s", jobInfo.HandledURL, err)
+					} else {
+						retryJobInfo.Retries = jobInfo.Retries + 1
+					}
+
 				}
 			}
 

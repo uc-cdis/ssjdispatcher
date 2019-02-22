@@ -26,9 +26,12 @@ type JobsArray struct {
 }
 
 type JobInfo struct {
-	UID    string `json:"uid"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	UID        string    `json:"uid"`
+	Name       string    `json:"name"`
+	Status     string    `json:"status"`
+	HandledURL string    `json:"handledurl"`
+	JobConf    JobConfig `json:"jobconf"`
+	Retries    int       `json:"retries"`
 }
 
 func getJobClient() batchtypev1.JobInterface {
@@ -59,6 +62,7 @@ func getJobByID(jc batchtypev1.JobInterface, jobid string) (*batchv1.Job, error)
 	return nil, fmt.Errorf("job with jobid %s not found", jobid)
 }
 
+//GetJobStatusByID returns job status given job id
 func GetJobStatusByID(jobid string) (*JobInfo, error) {
 	job, err := getJobByID(getJobClient(), jobid)
 	if err != nil {
@@ -216,7 +220,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 							},
 							ImagePullPolicy: k8sv1.PullPolicy(k8sv1.PullAlways),
 							Resources: k8sv1.ResourceRequirements{
-								Limits: k8sv1.ResourceList{
+								Requests: k8sv1.ResourceList{
 									k8sv1.ResourceCPU:    resource.MustParse(jobConfig.RequestCPU),
 									k8sv1.ResourceMemory: resource.MustParse(jobConfig.RequestMem),
 								},
@@ -263,6 +267,9 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	ji := JobInfo{}
 	ji.Name = newJob.Name
 	ji.UID = string(newJob.GetUID())
+	ji.HandledURL = inputURL
+	ji.JobConf = jobConfig
 	ji.Status = jobStatusToString(&newJob.Status)
+	ji.Retries = 0
 	return &ji, nil
 }
