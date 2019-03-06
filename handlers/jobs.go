@@ -183,6 +183,15 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	var deadline int64 = 3600
 	labels := make(map[string]string)
 	labels["app"] = "ssjdispatcherjob"
+
+	if jobConfig.RequestCPU == "" {
+		jobConfig.RequestCPU = "500m"
+	}
+
+	if jobConfig.RequestMem == "" {
+		jobConfig.RequestMem = "0.1Gi"
+	}
+
 	// For an example of how to create jobs, see this file:
 	// https://github.com/pachyderm/pachyderm/blob/805e63/src/server/pps/server/api_server.go#L2320-L2345
 	batchJob := &batchv1.Job{
@@ -217,7 +226,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 							},
 							ImagePullPolicy: k8sv1.PullPolicy(k8sv1.PullAlways),
 							Resources: k8sv1.ResourceRequirements{
-								Limits: k8sv1.ResourceList{
+								Requests: k8sv1.ResourceList{
 									k8sv1.ResourceCPU:    resource.MustParse(jobConfig.RequestCPU),
 									k8sv1.ResourceMemory: resource.MustParse(jobConfig.RequestMem),
 								},
