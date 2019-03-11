@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -13,11 +14,15 @@ import (
 	mq "github.com/remind101/mq-go"
 )
 
+const MAX_RETRIES = 3
+
 type SQSHandler struct {
-	QueueURL   string
-	Start      bool
-	JobConfigs []JobConfig
-	Server     *mq.Server
+	QueueURL      string
+	Start         bool
+	JobConfigs    []JobConfig
+	Server        *mq.Server
+	MonitoredJobs []*JobInfo
+	Mu            sync.Mutex
 }
 
 type JobConfig struct {
@@ -44,19 +49,49 @@ func (handler *SQSHandler) StartServer() error {
 		return nil
 	}
 
-	fmt.Println("Start a new server")
 	newClient, err := NewSQSClient()
 	if err != nil {
 		return err
 	}
 
+	glog.Info("Starting a new server...")
 	handler.Server = mq.NewServer(handler.QueueURL, mq.HandlerFunc(func(m *mq.Message) error {
 		return handler.HandleSQSMessage(m)
 	}), mq.WithClient(newClient))
 	handler.Server.Start()
+	glog.Info("The server is started")
+
+	go handler.StartMonitoringProcess()
 
 	return nil
 
+}
+
+// StartMonitoringProcess starts the process to monitor the created job
+func (handler *SQSHandler) StartMonitoringProcess() {
+	for {
+		var nextMonitoredJobs []*JobInfo
+
+		for _, jobInfo := range handler.MonitoredJobs {
+			k8sJob, err := GetJobStatusByID(jobInfo.UID)
+			if err != nil {
+				glog.Errorf("Can not get k8s job %s. Detail %s", jobInfo.Name, err)
+			} else {
+				glog.Infof("%s: %s", k8sJob.Name, k8sJob.Status)
+				if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" {
+					nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
+				}
+			}
+
+		}
+		handler.Mu.Lock()
+		handler.MonitoredJobs = nextMonitoredJobs
+		handler.Mu.Unlock()
+
+		RemoveCompletedJobs()
+
+		time.Sleep(30 * time.Second)
+	}
 }
 
 // ShutdownServer shutdowns a server
@@ -162,9 +197,6 @@ func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 		jobNameList = append(jobNameList, jobConfig.Name)
 	}
 
-	// remove completed jobs
-	RemoveCompletedJobs(jobNameList)
-
 	jobMap := make(map[string]JobConfig)
 	for _, objectPath := range objectPaths {
 		for _, jobConfig := range handler.JobConfigs {
@@ -178,21 +210,24 @@ func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
 	glog.Infof("Start to run %d jobs", len(jobMap))
 
 	for objectPath, jobConfig := range jobMap {
-		for GetNumberRunningJobs(jobNameList) > GetMaxJobConfig() {
+		for GetNumberRunningJobs() > GetMaxJobConfig() {
 			time.Sleep(5 * time.Second)
 		}
 		glog.Info("Processing: ", objectPath)
-		result, err := CreateK8sJob(objectPath, jobConfig)
+		jobInfo, err := CreateK8sJob(objectPath, jobConfig)
 		if err != nil {
 			glog.Errorln(err)
 			return err
 		}
-		out, err := json.Marshal(result)
+		out, err := json.Marshal(jobInfo)
 		if err != nil {
 			glog.Errorln(err)
 			return err
 		}
 		glog.Info(string(out))
+		handler.Mu.Lock()
+		handler.MonitoredJobs = append(handler.MonitoredJobs, jobInfo)
+		handler.Mu.Unlock()
 	}
 
 	return nil

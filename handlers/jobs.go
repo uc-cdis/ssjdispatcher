@@ -59,7 +59,8 @@ func getJobByID(jc batchtypev1.JobInterface, jobid string) (*batchv1.Job, error)
 	return nil, fmt.Errorf("job with jobid %s not found", jobid)
 }
 
-func getJobStatusByID(jobid string) (*JobInfo, error) {
+//GetJobStatusByID returns job status given job id
+func GetJobStatusByID(jobid string) (*JobInfo, error) {
 	job, err := getJobByID(getJobClient(), jobid)
 	if err != nil {
 		return nil, err
@@ -136,7 +137,7 @@ func jobStatusToString(status *batchv1.JobStatus) string {
 }
 
 // RemoveCompletedJobs removes all completed k8s jobs dispatched by the service
-func RemoveCompletedJobs(prefixList []string) {
+func RemoveCompletedJobs() {
 	jobs := listJobs(getJobClient())
 	for i := 0; i < len(jobs.JobInfo); i++ {
 		job := jobs.JobInfo[i]
@@ -147,7 +148,7 @@ func RemoveCompletedJobs(prefixList []string) {
 }
 
 // GetNumberRunningJobs returns number of k8s running jobs dispatched by the service
-func GetNumberRunningJobs(prefixList []string) int {
+func GetNumberRunningJobs() int {
 	jobs := listJobs(getJobClient())
 	nRunningJobs := 0
 	for i := 0; i < len(jobs.JobInfo); i++ {

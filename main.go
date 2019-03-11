@@ -68,7 +68,9 @@ func main() {
 
 	// start an SQSHandler instance
 	SQSHandler := handlers.NewSQSHandler(sqsURL)
-	SQSHandler.StartServer()
+	if err := SQSHandler.StartServer(); err != nil {
+		glog.Errorf("Can not start the server. Detail %s", err)
+	}
 	defer SQSHandler.Server.Shutdown(context.Background())
 
 	SQSHandler.JobConfigs = jobConfigs
