@@ -88,7 +88,7 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 		handler.MonitoredJobs = nextMonitoredJobs
 		handler.Mu.Unlock()
 
-		RemoveCompletedJobs()
+		//RemoveCompletedJobs()
 
 		time.Sleep(30 * time.Second)
 	}
