@@ -180,7 +180,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	randname := GetRandString(5)
 	name := fmt.Sprintf("%s-%s", jobConfig.Name, randname)
 	glog.Infoln("job input URL: ", inputURL)
-	var deadline int64 = 3600
+	var deadline int64 = 7200
 	labels := make(map[string]string)
 	labels["app"] = "ssjdispatcherjob"
 
@@ -190,6 +190,16 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 
 	if jobConfig.RequestMem == "" {
 		jobConfig.RequestMem = "0.1Gi"
+	}
+
+	quayImage := jobConfig.Image
+	val, ok := os.LookupEnv("JOB_IMAGES")
+	if ok {
+		quayImageIf, err := GetValueFromJSON([]byte(val), []string{jobConfig.Name})
+		if err != nil {
+			return nil, err
+		}
+		quayImage = quayImageIf.(string)
 	}
 
 	// For an example of how to create jobs, see this file:
@@ -220,7 +230,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 					Containers: []k8sv1.Container{
 						{
 							Name:  "job-task",
-							Image: jobConfig.Image,
+							Image: quayImage,
 							SecurityContext: &k8sv1.SecurityContext{
 								Privileged: &falseVal,
 							},
