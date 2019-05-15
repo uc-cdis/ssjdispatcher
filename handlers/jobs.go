@@ -192,11 +192,15 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 		jobConfig.RequestMem = "0.1Gi"
 	}
 
-	quayImageIf, err := GetValueFromJSON([]byte(os.Getenv("JOB_IMAGES")), []string{jobConfig.Image})
-	if err != nil {
-		return nil, err
+	quayImage := jobConfig.Image
+	val, ok := os.LookupEnv("JOB_IMAGES")
+	if ok {
+		quayImageIf, err := GetValueFromJSON([]byte(val), []string{jobConfig.Name})
+		if err != nil {
+			return nil, err
+		}
+		quayImage = quayImageIf.(string)
 	}
-	quayImage := quayImageIf.(string)
 
 	// For an example of how to create jobs, see this file:
 	// https://github.com/pachyderm/pachyderm/blob/805e63/src/server/pps/server/api_server.go#L2320-L2345
