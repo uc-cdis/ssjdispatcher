@@ -34,6 +34,11 @@ type JobConfig struct {
 	RequestMem  string      `request_mem`
 }
 
+type RetryMessage struct {
+	Bucket string `bucket`
+	Key    string `key`
+}
+
 // NewSQSHandler creates new SQSHandler instance
 func NewSQSHandler(queueURL string) *SQSHandler {
 	sqsHandler := new(SQSHandler)
@@ -56,7 +61,7 @@ func (handler *SQSHandler) StartServer() error {
 
 	glog.Info("Starting a new server...")
 	handler.Server = mq.NewServer(handler.QueueURL, mq.HandlerFunc(func(m *mq.Message) error {
-		return handler.HandleSQSMessage(m)
+		return handler.HandleSQSMessage(aws.StringValue(m.SQSMessage.Body))
 	}), mq.WithClient(newClient))
 	handler.Server.Start()
 	glog.Info("The server is started")
@@ -129,10 +134,10 @@ The format of a SQS message body:
 }
 */
 
-func getObjectsFromSQSMessage(m *mq.Message) []string {
+func getObjectsFromSQSMessage(msgBody string) []string {
 	objectPaths := make([]string, 0)
 	mapping := make(map[string][]interface{})
-	msgBody := aws.StringValue(m.SQSMessage.Body)
+	//msgBody := aws.StringValue(m.SQSMessage.Body)
 
 	msgBodyInf, err := GetValueFromJSON([]byte(msgBody), []string{"Message"})
 	if err != nil {
@@ -189,8 +194,9 @@ to the queue and retry later (handled by `md` library). That makes sure
 the message is properly handle before it actually deleted
 
 */
-func (handler *SQSHandler) HandleSQSMessage(m *mq.Message) error {
-	objectPaths := getObjectsFromSQSMessage(m)
+func (handler *SQSHandler) HandleSQSMessage(jsonBody string) error {
+
+	objectPaths := getObjectsFromSQSMessage(jsonBody)
 
 	jobNameList := make([]string, 0)
 	for _, jobConfig := range handler.JobConfigs {
@@ -267,4 +273,23 @@ func (handler *SQSHandler) handleListJobConfigs() (string, error) {
 		str = str + string(jsonBytes) + ","
 	}
 	return "[" + str + "]", nil
+}
+
+/*
+RetryCreateIndexingJob creates manually job
+*/
+func (handler *SQSHandler) RetryCreateIndexingJob(jsonBytes []byte) error {
+
+	retryMessage := RetryMessage{}
+	if err := json.Unmarshal(jsonBytes, &retryMessage); err != nil {
+		return err
+	}
+
+	// str := fmt.Sprintf(`{
+	// 	"Type" : "Notification",
+	// 	"Message" : "{\"Records\":[{\"eventVersion\":\"2.1\",\"eventSource\":\"aws:s3\",\"awsRegion\":\"us-east-1\",\"eventTime\":\"2019-09-09T16:41:15.070Z\",\"eventName\":\"ObjectCreated:Put\",\"userIdentity\":{\"principalId\":\"AWS:AROAICHVNMYIWEFXZIRDW:botocore-session-1568044604\"},\"requestParameters\":{\"sourceIPAddress\":\"3.80.3.205\"},\"responseElements\":{\"x-amz-request-id\":\"B8719D089AA27552\",\"x-amz-id-2\":\"ty6YVJxxsNKlHMnZ7Vl1rJJtjd7+3iMLOniqzEVxqa01Nca2RA3NxKxtrT8Swm5PNrVlg4gycOY=\"},\"s3\":{\"s3SchemaVersion\":\"1.0\",\"configurationId\":\"tf-s3-topic-20190326131647692000000001\",\"bucket\":{\"name\":\"%s\",\"ownerIdentity\":{\"principalId\":\"ADFRMV2WV818Z\"}},\"object\":{\"key\":\"%s\"}}}]}"}`, retryMessage.Bucket, retryMessage.Key)
+	str := fmt.Sprintf(`{
+		"Type" : "Notification",
+		"Message" : "{\"Records\":[{\"eventSource\":\"aws:s3\",\"awsRegion\":\"us-east-1\",\"eventName\":\"ObjectCreated:Put\",\"s3\":{\"s3SchemaVersion\":\"1.0\",\"bucket\":{\"name\":\"%s\"},\"object\":{\"key\":\"%s\"}}}]}"}`, retryMessage.Bucket, retryMessage.Key)
+	return handler.HandleSQSMessage(str)
 }
