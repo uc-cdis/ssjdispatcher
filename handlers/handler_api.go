@@ -11,6 +11,7 @@ func (handler *SQSHandler) RegisterSQSHandler() {
 	http.HandleFunc("/server", handler.ServiceHandler)
 	http.HandleFunc("/sqs", handler.SQSHandler)
 	http.HandleFunc("/jobConfig", handler.HandleJobConfig)
+	http.HandleFunc("/dispatchJob", handler.HandleDispatchJob)
 }
 
 // ServiceHandler handles stop/start/status the SQS querrying service
@@ -137,4 +138,28 @@ func (handler *SQSHandler) listJobConfigs(w http.ResponseWriter, r *http.Request
 		http.Error(w, msg, http.StatusInternalServerError)
 	}
 	fmt.Fprintf(w, str)
+}
+
+// HandleDispatchJob dispatch an job
+func (handler *SQSHandler) HandleDispatchJob(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		handler.dispatchJob(w, r)
+	}
+}
+
+// addJob adds an job config
+func (handler *SQSHandler) dispatchJob(w http.ResponseWriter, r *http.Request) {
+	// Try to read the request body.
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		msg := fmt.Sprintf("failed to read request body; encountered error: %s", err)
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+	if err = handler.RetryCreateIndexingJob(body); err != nil {
+		msg := fmt.Sprintf("failed to dispatch an job; encountered error: %s", err)
+		http.Error(w, msg, http.StatusBadRequest)
+		return
+	}
+	fmt.Fprintf(w, "Successfully dispatch a new job!")
 }
