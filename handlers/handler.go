@@ -285,9 +285,6 @@ func (handler *SQSHandler) RetryCreateIndexingJob(jsonBytes []byte) error {
 		return err
 	}
 
-	// str := fmt.Sprintf(`{
-	// 	"Type" : "Notification",
-	// 	"Message" : "{\"Records\":[{\"eventVersion\":\"2.1\",\"eventSource\":\"aws:s3\",\"awsRegion\":\"us-east-1\",\"eventTime\":\"2019-09-09T16:41:15.070Z\",\"eventName\":\"ObjectCreated:Put\",\"userIdentity\":{\"principalId\":\"AWS:AROAICHVNMYIWEFXZIRDW:botocore-session-1568044604\"},\"requestParameters\":{\"sourceIPAddress\":\"3.80.3.205\"},\"responseElements\":{\"x-amz-request-id\":\"B8719D089AA27552\",\"x-amz-id-2\":\"ty6YVJxxsNKlHMnZ7Vl1rJJtjd7+3iMLOniqzEVxqa01Nca2RA3NxKxtrT8Swm5PNrVlg4gycOY=\"},\"s3\":{\"s3SchemaVersion\":\"1.0\",\"configurationId\":\"tf-s3-topic-20190326131647692000000001\",\"bucket\":{\"name\":\"%s\",\"ownerIdentity\":{\"principalId\":\"ADFRMV2WV818Z\"}},\"object\":{\"key\":\"%s\"}}}]}"}`, retryMessage.Bucket, retryMessage.Key)
 	str := fmt.Sprintf(`{
 		"Type" : "Notification",
 		"Message" : "{\"Records\":[{\"eventSource\":\"aws:s3\",\"awsRegion\":\"us-east-1\",\"eventName\":\"ObjectCreated:Put\",\"s3\":{\"s3SchemaVersion\":\"1.0\",\"bucket\":{\"name\":\"%s\"},\"object\":{\"key\":\"%s\"}}}]}"}`, retryMessage.Bucket, retryMessage.Key)
