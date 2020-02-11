@@ -1,4 +1,4 @@
-FROM golang:1.10 as build-deps
+FROM golang:1.12 as build-deps
 
 # Temporary, until kubernetes/client-go#656 gets resolved.
 RUN go get k8s.io/klog && cd $GOPATH/src/k8s.io/klog && git checkout v0.4.0
