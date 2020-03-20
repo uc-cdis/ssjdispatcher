@@ -153,7 +153,7 @@ func GetNumberRunningJobs() int {
 	nRunningJobs := 0
 	for i := 0; i < len(jobs.JobInfo); i++ {
 		job := jobs.JobInfo[i]
-		if job.Status == "Running" {
+		if job.Status == "Running" || job.Status == "Unknown" {
 			nRunningJobs++
 		}
 	}
