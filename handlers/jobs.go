@@ -181,6 +181,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	name := fmt.Sprintf("%s-%s", jobConfig.Name, randname)
 	glog.Infoln("job input URL: ", inputURL)
 	var deadline int64 = 72000
+	var backoff int32 = 2
 	labels := make(map[string]string)
 	labels["app"] = "ssjdispatcherjob"
 
@@ -219,6 +220,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 			// Optional: ActiveDeadlineSeconds:,
 			// Optional: Selector:,
 			// Optional: ManualSelector:,
+			BackoffLimit:          &backoff,
 			ActiveDeadlineSeconds: &deadline,
 			Template: k8sv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
