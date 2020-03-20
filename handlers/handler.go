@@ -220,6 +220,7 @@ func (handler *SQSHandler) HandleSQSMessage(jsonBody string) error {
 			}
 		}
 	}
+	glog.Info("message:", jsonBody)
 
 	glog.Infof("Start to run %d jobs", len(jobMap))
 
@@ -230,11 +231,13 @@ func (handler *SQSHandler) HandleSQSMessage(jsonBody string) error {
 		glog.Info("Processing: ", objectPath)
 		jobInfo, err := CreateK8sJob(objectPath, jobConfig)
 		if err != nil {
+			glog.Infof("Error :%s", err)
 			glog.Errorln(err)
 			return err
 		}
 		out, err := json.Marshal(jobInfo)
 		if err != nil {
+			glog.Infof("Error :%s", err)
 			glog.Errorln(err)
 			return err
 		}
