@@ -67,6 +67,7 @@ func (handler *SQSHandler) StartServer() error {
 	glog.Info("The server is started")
 
 	go handler.StartMonitoringProcess()
+	go handler.RemoveCompletedJobsProcess()
 
 	return nil
 
@@ -93,9 +94,16 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 		handler.MonitoredJobs = nextMonitoredJobs
 		handler.Mu.Unlock()
 
-		RemoveCompletedJobs()
-
 		time.Sleep(30 * time.Second)
+	}
+}
+
+// RemoveCompletedJobsProcess starts the process to remove completed jobs
+func (handler *SQSHandler) RemoveCompletedJobsProcess() {
+	for {
+		time.Sleep(300 * time.Second)
+		glog.Info("Start to remove completed jobs")
+		RemoveCompletedJobs()
 	}
 }
 
