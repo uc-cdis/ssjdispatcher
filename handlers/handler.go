@@ -95,18 +95,19 @@ func (handler *SQSHandler) StartConsumingProcess(queueURL string) error {
 		if err != nil {
 			glog.Error(err)
 		}
-		fmt.Printf("[Receive message] \n%v \n\n", receiveResp)
-		for _, message := range receiveResp.Messages {
-			fmt.Printf("%s", *message.Body)
-		}
 
 		for _, message := range receiveResp.Messages {
+			err := handler.HandleSQSMessage(*message.Body)
+			if err != nil {
+				glog.Errorf("Can not process the message. Error %s. Message %s", err, *message.Body)
+				continue
+			}
+
 			deleteParams := &sqs.DeleteMessageInput{
 				QueueUrl:      aws.String(queueURL),  // Required
 				ReceiptHandle: message.ReceiptHandle, // Required
-
 			}
-			_, err := newClient.DeleteMessage(deleteParams) // No response returned when successed.
+			_, err = newClient.DeleteMessage(deleteParams) // No response returned when successed.
 			if err != nil {
 				log.Println(err)
 			}
