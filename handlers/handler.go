@@ -5,16 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/golang/glog"
 	mq "github.com/remind101/mq-go"
 )
-
-const MAX_RETRIES = 3
 
 type SQSHandler struct {
 	QueueURL      string
@@ -54,23 +54,67 @@ func (handler *SQSHandler) StartServer() error {
 		return nil
 	}
 
+	// newClient, err := NewSQSClient()
+	// if err != nil {
+	// 	return err
+	// }
+
+	glog.Info("Starting a new server ...")
+
+	// handler.Server = mq.NewServer(handler.QueueURL, mq.HandlerFunc(func(m *mq.Message) error {
+	// 	return handler.HandleSQSMessage(aws.StringValue(m.SQSMessage.Body))
+	// }), mq.WithClient(newClient))
+
+	//handler.Server.Start()
+
+	go handler.StartConsumingProcess(handler.QueueURL)
+	go handler.StartMonitoringProcess()
+	go handler.RemoveCompletedJobsProcess()
+
+	glog.Info("The server is started")
+
+	return nil
+
+}
+
+// StartConsumingProcess starts consumming the queue
+func (handler *SQSHandler) StartConsumingProcess(queueURL string) error {
 	newClient, err := NewSQSClient()
 	if err != nil {
 		return err
 	}
 
-	glog.Info("Starting a new server...")
-	handler.Server = mq.NewServer(handler.QueueURL, mq.HandlerFunc(func(m *mq.Message) error {
-		return handler.HandleSQSMessage(aws.StringValue(m.SQSMessage.Body))
-	}), mq.WithClient(newClient))
-	handler.Server.Start()
-	glog.Info("The server is started")
+	receiveParams := &sqs.ReceiveMessageInput{
+		QueueUrl:            aws.String(queueURL),
+		MaxNumberOfMessages: aws.Int64(1),
+		VisibilityTimeout:   aws.Int64(30),
+		WaitTimeSeconds:     aws.Int64(20),
+	}
+	for {
+		receiveResp, err := newClient.ReceiveMessage(receiveParams)
+		if err != nil {
+			glog.Error(err)
+		}
 
-	go handler.StartMonitoringProcess()
-	go handler.RemoveCompletedJobsProcess()
+		for _, message := range receiveResp.Messages {
+			err := handler.HandleSQSMessage(*message.Body)
+			if err != nil {
+				glog.Errorf("Can not process the message. Error %s. Message %s", err, *message.Body)
+				continue
+			}
 
-	return nil
+			deleteParams := &sqs.DeleteMessageInput{
+				QueueUrl:      aws.String(queueURL),  // Required
+				ReceiptHandle: message.ReceiptHandle, // Required
+			}
+			_, err = newClient.DeleteMessage(deleteParams) // No response returned when successed.
+			if err != nil {
+				log.Println(err)
+			}
+			fmt.Printf("[Delete message] \nMessage ID: %s has beed deleted.\n\n", *message.MessageId)
+		}
 
+	}
 }
 
 // StartMonitoringProcess starts the process to monitor the created job
