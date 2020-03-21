@@ -96,6 +96,9 @@ func (handler *SQSHandler) StartConsumingProcess(queueURL string) error {
 			glog.Error(err)
 		}
 		fmt.Printf("[Receive message] \n%v \n\n", receiveResp)
+		for _, message := range receiveResp.Messages {
+			fmt.Printf("%s", *message.Body)
+		}
 
 		for _, message := range receiveResp.Messages {
 			deleteParams := &sqs.DeleteMessageInput{
