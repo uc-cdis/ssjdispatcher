@@ -49,23 +49,8 @@ func NewSQSHandler(queueURL string) *SQSHandler {
 
 // StartServer starts a server
 func (handler *SQSHandler) StartServer() error {
-	// return nil if the server already start
-	if handler.Server != nil {
-		return nil
-	}
-
-	// newClient, err := NewSQSClient()
-	// if err != nil {
-	// 	return err
-	// }
 
 	glog.Info("Starting a new server ...")
-
-	// handler.Server = mq.NewServer(handler.QueueURL, mq.HandlerFunc(func(m *mq.Message) error {
-	// 	return handler.HandleSQSMessage(aws.StringValue(m.SQSMessage.Body))
-	// }), mq.WithClient(newClient))
-
-	//handler.Server.Start()
 
 	go handler.StartConsumingProcess(handler.QueueURL)
 	go handler.StartMonitoringProcess()
@@ -91,6 +76,7 @@ func (handler *SQSHandler) StartConsumingProcess(queueURL string) error {
 		WaitTimeSeconds:     aws.Int64(20),
 	}
 	for {
+		time.Sleep(1 * time.Second)
 		receiveResp, err := newClient.ReceiveMessage(receiveParams)
 		if err != nil {
 			glog.Error(err)

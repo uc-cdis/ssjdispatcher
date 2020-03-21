@@ -71,7 +71,6 @@ func main() {
 	if err := SQSHandler.StartServer(); err != nil {
 		glog.Errorf("Can not start the server. Detail %s", err)
 	}
-	//defer SQSHandler.Server.Shutdown(context.Background())
 
 	SQSHandler.JobConfigs = jobConfigs
 
