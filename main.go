@@ -14,7 +14,6 @@ curl -X POST http://localhost:8000/job -d '{"Name":"TEST3", "Pattern":"s3://test
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -68,10 +67,11 @@ func main() {
 
 	// start an SQSHandler instance
 	SQSHandler := handlers.NewSQSHandler(sqsURL)
+
 	if err := SQSHandler.StartServer(); err != nil {
 		glog.Errorf("Can not start the server. Detail %s", err)
 	}
-	defer SQSHandler.Server.Shutdown(context.Background())
+	//defer SQSHandler.Server.Shutdown(context.Background())
 
 	SQSHandler.JobConfigs = jobConfigs
 

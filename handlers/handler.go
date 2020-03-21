@@ -59,18 +59,19 @@ func (handler *SQSHandler) StartServer() error {
 	// 	return err
 	// }
 
-	glog.Info("Starting a new server...")
+	glog.Info("Starting a new server ...")
 
 	// handler.Server = mq.NewServer(handler.QueueURL, mq.HandlerFunc(func(m *mq.Message) error {
 	// 	return handler.HandleSQSMessage(aws.StringValue(m.SQSMessage.Body))
 	// }), mq.WithClient(newClient))
 
-	handler.Server.Start()
-	glog.Info("The server is started")
+	//handler.Server.Start()
 
 	go handler.StartConsumingProcess(handler.QueueURL)
 	go handler.StartMonitoringProcess()
 	go handler.RemoveCompletedJobsProcess()
+
+	glog.Info("The server is started")
 
 	return nil
 
