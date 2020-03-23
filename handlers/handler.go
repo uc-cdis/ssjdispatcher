@@ -1,11 +1,9 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"regexp"
 	"sync"
 	"time"
@@ -13,14 +11,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/golang/glog"
-	mq "github.com/remind101/mq-go"
 )
 
 type SQSHandler struct {
 	QueueURL      string
 	Start         bool
 	JobConfigs    []JobConfig
-	Server        *mq.Server
 	MonitoredJobs []*JobInfo
 	Mu            sync.Mutex
 }
@@ -95,7 +91,7 @@ func (handler *SQSHandler) StartConsumingProcess(queueURL string) error {
 			}
 			_, err = newClient.DeleteMessage(deleteParams) // No response returned when successed.
 			if err != nil {
-				log.Println(err)
+				glog.Error(err)
 			}
 			fmt.Printf("[Delete message] \nMessage ID: %s has beed deleted.\n\n", *message.MessageId)
 		}
@@ -135,17 +131,6 @@ func (handler *SQSHandler) RemoveCompletedJobsProcess() {
 		glog.Info("Start to remove completed jobs")
 		RemoveCompletedJobs()
 	}
-}
-
-// ShutdownServer shutdowns a server
-func (handler *SQSHandler) ShutdownServer() error {
-	fmt.Println("Shutdown the server")
-	if handler.Server == nil {
-		return nil
-	}
-	err := handler.Server.Shutdown(context.Background())
-	handler.Server = nil
-	return err
 }
 
 /*
