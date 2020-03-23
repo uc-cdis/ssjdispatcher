@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/golang/glog"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -26,9 +27,11 @@ type JobsArray struct {
 }
 
 type JobInfo struct {
-	UID    string `json:"uid"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	UID        string `json:"uid"`
+	Name       string `json:"name"`
+	Status     string `json:"status"`
+	QueueURL   string `json:"queueURL"`
+	SQSMessage *sqs.Message
 }
 
 func getJobClient() batchtypev1.JobInterface {

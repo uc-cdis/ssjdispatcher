@@ -50,7 +50,7 @@ func (handler *SQSHandler) StartServer() error {
 
 	go handler.StartConsumingProcess(handler.QueueURL)
 	go handler.StartMonitoringProcess()
-	go handler.RemoveCompletedJobsProcess()
+	//go handler.RemoveCompletedJobsProcess()
 
 	glog.Info("The server is started")
 
@@ -79,24 +79,47 @@ func (handler *SQSHandler) StartConsumingProcess(queueURL string) error {
 		}
 
 		for _, message := range receiveResp.Messages {
-			err := handler.HandleSQSMessage(*message.Body)
-			if err != nil {
-				glog.Errorf("Can not process the message. Error %s. Message %s", err, *message.Body)
-				continue
-			}
+			// err := handler.HandleSQSMessage(queueURL, message)
+			// if err != nil {
+			// 	glog.Errorf("Can not process the message. Error %s. Message %s", err, *message.Body)
+			// 	continue
+			// }
 
-			deleteParams := &sqs.DeleteMessageInput{
-				QueueUrl:      aws.String(queueURL),  // Required
-				ReceiptHandle: message.ReceiptHandle, // Required
+			glog.Info("message:", *message.Body)
+
+			glog.Infof("Start proceess meessage %s", message.MessageId)
+			time.Sleep(5)
+
+			handler.RemoveSQSMessage(queueURL, message)
+
+			sentMessageInput := &sqs.SendMessageInput{
+				MessageBody: message.Body,
+				QueueUrl:    aws.String(queueURL),
 			}
-			_, err = newClient.DeleteMessage(deleteParams) // No response returned when successed.
-			if err != nil {
-				glog.Error(err)
-			}
-			fmt.Printf("[Delete message] \nMessage ID: %s has beed deleted.\n\n", *message.MessageId)
+			newClient.SendMessageRequest(sentMessageInput)
+
 		}
 
 	}
+}
+
+// RemoveSQSMessage removes SQS message
+func (handler *SQSHandler) RemoveSQSMessage(queueURL string, message *sqs.Message) error {
+	newClient, err := NewSQSClient()
+	if err != nil {
+		return err
+	}
+	deleteParams := &sqs.DeleteMessageInput{
+		QueueUrl:      aws.String(queueURL),  // Required
+		ReceiptHandle: message.ReceiptHandle, // Required
+	}
+	_, err = newClient.DeleteMessage(deleteParams) // No response returned when successed.
+	if err != nil {
+		glog.Error(err)
+		return err
+	}
+	glog.Infof("[Delete message] \nMessage ID: %s has beed deleted.\n\n", *message.MessageId)
+	return nil
 }
 
 // StartMonitoringProcess starts the process to monitor the created job
@@ -112,6 +135,9 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 				glog.Infof("%s: %s", k8sJob.Name, k8sJob.Status)
 				if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" {
 					nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
+				} else if k8sJob.Status == "Completed" {
+					deleteJobByID(k8sJob.UID, GRACE_PERIOD)
+					handler.RemoveSQSMessage(k8sJob.QueueURL, k8sJob.SQSMessage)
 				}
 			}
 
@@ -125,13 +151,13 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 }
 
 // RemoveCompletedJobsProcess starts the process to remove completed jobs
-func (handler *SQSHandler) RemoveCompletedJobsProcess() {
-	for {
-		time.Sleep(300 * time.Second)
-		glog.Info("Start to remove completed jobs")
-		RemoveCompletedJobs()
-	}
-}
+// func (handler *SQSHandler) RemoveCompletedJobsProcess() {
+// 	for {
+// 		time.Sleep(300 * time.Second)
+// 		glog.Info("Start to remove completed jobs")
+// 		RemoveCompletedJobs()
+// 	}
+// }
 
 /*
 getObjectFromSQSMessage returns s3 object from sqs message
@@ -217,8 +243,9 @@ to the queue and retry later (handled by `md` library). That makes sure
 the message is properly handle before it actually deleted
 
 */
-func (handler *SQSHandler) HandleSQSMessage(jsonBody string) error {
+func (handler *SQSHandler) HandleSQSMessage(queueURL string, message *sqs.Message) error {
 
+	jsonBody := *message.Body
 	objectPaths := getObjectsFromSQSMessage(jsonBody)
 
 	jobNameList := make([]string, 0)
@@ -257,6 +284,8 @@ func (handler *SQSHandler) HandleSQSMessage(jsonBody string) error {
 			return err
 		}
 		glog.Info(string(out))
+		jobInfo.SQSMessage = message
+		jobInfo.QueueURL = queueURL
 		handler.Mu.Lock()
 		handler.MonitoredJobs = append(handler.MonitoredJobs, jobInfo)
 		handler.Mu.Unlock()
@@ -314,5 +343,7 @@ func (handler *SQSHandler) RetryCreateIndexingJob(jsonBytes []byte) error {
 	str := fmt.Sprintf(`{
 		"Type" : "Notification",
 		"Message" : "{\"Records\":[{\"eventSource\":\"aws:s3\",\"awsRegion\":\"us-east-1\",\"eventName\":\"ObjectCreated:Put\",\"s3\":{\"s3SchemaVersion\":\"1.0\",\"bucket\":{\"name\":\"%s\"},\"object\":{\"key\":\"%s\"}}}]}"}`, retryMessage.Bucket, retryMessage.Key)
-	return handler.HandleSQSMessage(str)
+	sqsMessage := sqs.Message{}
+	sqsMessage.SetBody(str)
+	return handler.HandleSQSMessage(&sqsMessage)
 }
