@@ -30,7 +30,6 @@ type JobInfo struct {
 	UID        string `json:"uid"`
 	Name       string `json:"name"`
 	Status     string `json:"status"`
-	QueueURL   string `json:"queueURL"`
 	SQSMessage *sqs.Message
 }
 

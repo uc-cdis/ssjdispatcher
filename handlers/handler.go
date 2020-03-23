@@ -48,9 +48,9 @@ func (handler *SQSHandler) StartServer() error {
 
 	glog.Info("Starting a new server ...")
 
-	go handler.StartConsumingProcess(handler.QueueURL)
+	go handler.StartConsumingProcess()
 	go handler.StartMonitoringProcess()
-	//go handler.RemoveCompletedJobsProcess()
+	go handler.RemoveCompletedJobsProcess()
 
 	glog.Info("The server is started")
 
@@ -59,14 +59,14 @@ func (handler *SQSHandler) StartServer() error {
 }
 
 // StartConsumingProcess starts consumming the queue
-func (handler *SQSHandler) StartConsumingProcess(queueURL string) error {
+func (handler *SQSHandler) StartConsumingProcess() error {
 	newClient, err := NewSQSClient()
 	if err != nil {
 		return err
 	}
 
 	receiveParams := &sqs.ReceiveMessageInput{
-		QueueUrl:            aws.String(queueURL),
+		QueueUrl:            aws.String(handler.QueueURL),
 		MaxNumberOfMessages: aws.Int64(1),
 		VisibilityTimeout:   aws.Int64(30),
 		WaitTimeSeconds:     aws.Int64(20),
@@ -79,24 +79,13 @@ func (handler *SQSHandler) StartConsumingProcess(queueURL string) error {
 		}
 
 		for _, message := range receiveResp.Messages {
-			// err := handler.HandleSQSMessage(queueURL, message)
-			// if err != nil {
-			// 	glog.Errorf("Can not process the message. Error %s. Message %s", err, *message.Body)
-			// 	continue
-			// }
-
-			glog.Info("message:", *message.Body)
-
-			glog.Infof("Start proceess meessage %s", message.MessageId)
-			time.Sleep(5)
-
-			handler.RemoveSQSMessage(queueURL, message)
-
-			sentMessageInput := &sqs.SendMessageInput{
-				MessageBody: message.Body,
-				QueueUrl:    aws.String(queueURL),
+			err := handler.HandleSQSMessage(message)
+			if err != nil {
+				glog.Errorf("Can not process the message. Error %s. Message %s", err, *message.Body)
+				continue
 			}
-			newClient.SendMessageRequest(sentMessageInput)
+
+			handler.RemoveSQSMessage(message)
 
 		}
 
@@ -104,22 +93,37 @@ func (handler *SQSHandler) StartConsumingProcess(queueURL string) error {
 }
 
 // RemoveSQSMessage removes SQS message
-func (handler *SQSHandler) RemoveSQSMessage(queueURL string, message *sqs.Message) error {
+func (handler *SQSHandler) RemoveSQSMessage(message *sqs.Message) error {
 	newClient, err := NewSQSClient()
 	if err != nil {
 		return err
 	}
 	deleteParams := &sqs.DeleteMessageInput{
-		QueueUrl:      aws.String(queueURL),  // Required
-		ReceiptHandle: message.ReceiptHandle, // Required
+		QueueUrl:      aws.String(handler.QueueURL), // Required
+		ReceiptHandle: message.ReceiptHandle,        // Required
 	}
 	_, err = newClient.DeleteMessage(deleteParams) // No response returned when successed.
 	if err != nil {
 		glog.Error(err)
 		return err
 	}
-	glog.Infof("[Delete message] \nMessage ID: %s has beed deleted.\n\n", *message.MessageId)
+	glog.Infof("Message ID: %s has beed deleted.\n\n", *message.MessageId)
 	return nil
+}
+
+// ResendSQSMessage resends the message
+func (handler *SQSHandler) ResendSQSMessage(queueURL string, message *sqs.Message) error {
+	newClient, err := NewSQSClient()
+	if err != nil {
+		return err
+	}
+	sentMessageInput := &sqs.SendMessageInput{
+		MessageBody: message.Body,
+		QueueUrl:    aws.String(queueURL),
+	}
+	_, err = newClient.SendMessage(sentMessageInput)
+	return err
+
 }
 
 // StartMonitoringProcess starts the process to monitor the created job
@@ -130,14 +134,12 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 		for _, jobInfo := range handler.MonitoredJobs {
 			k8sJob, err := GetJobStatusByID(jobInfo.UID)
 			if err != nil {
-				glog.Errorf("Can not get k8s job %s. Detail %s", jobInfo.Name, err)
+				glog.Errorf("Can not get k8s job %s. Detail %s. Resend the message to the queue", jobInfo.Name, err)
+				handler.ResendSQSMessage(handler.QueueURL, k8sJob.SQSMessage)
 			} else {
 				glog.Infof("%s: %s", k8sJob.Name, k8sJob.Status)
 				if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" {
 					nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
-				} else if k8sJob.Status == "Completed" {
-					deleteJobByID(k8sJob.UID, GRACE_PERIOD)
-					handler.RemoveSQSMessage(k8sJob.QueueURL, k8sJob.SQSMessage)
 				}
 			}
 
@@ -151,13 +153,13 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 }
 
 // RemoveCompletedJobsProcess starts the process to remove completed jobs
-// func (handler *SQSHandler) RemoveCompletedJobsProcess() {
-// 	for {
-// 		time.Sleep(300 * time.Second)
-// 		glog.Info("Start to remove completed jobs")
-// 		RemoveCompletedJobs()
-// 	}
-// }
+func (handler *SQSHandler) RemoveCompletedJobsProcess() {
+	for {
+		time.Sleep(300 * time.Second)
+		glog.Info("Start to remove completed jobs")
+		RemoveCompletedJobs()
+	}
+}
 
 /*
 getObjectFromSQSMessage returns s3 object from sqs message
@@ -243,7 +245,7 @@ to the queue and retry later (handled by `md` library). That makes sure
 the message is properly handle before it actually deleted
 
 */
-func (handler *SQSHandler) HandleSQSMessage(queueURL string, message *sqs.Message) error {
+func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
 
 	jsonBody := *message.Body
 	objectPaths := getObjectsFromSQSMessage(jsonBody)
@@ -270,7 +272,6 @@ func (handler *SQSHandler) HandleSQSMessage(queueURL string, message *sqs.Messag
 		for GetNumberRunningJobs() > GetMaxJobConfig() {
 			time.Sleep(5 * time.Second)
 		}
-		glog.Info("Processing: ", objectPath)
 		jobInfo, err := CreateK8sJob(objectPath, jobConfig)
 		if err != nil {
 			glog.Infof("Error :%s", err)
@@ -283,9 +284,8 @@ func (handler *SQSHandler) HandleSQSMessage(queueURL string, message *sqs.Messag
 			glog.Errorln(err)
 			return err
 		}
-		glog.Info(string(out))
 		jobInfo.SQSMessage = message
-		jobInfo.QueueURL = queueURL
+		glog.Info(string(out))
 		handler.Mu.Lock()
 		handler.MonitoredJobs = append(handler.MonitoredJobs, jobInfo)
 		handler.Mu.Unlock()
@@ -345,5 +345,6 @@ func (handler *SQSHandler) RetryCreateIndexingJob(jsonBytes []byte) error {
 		"Message" : "{\"Records\":[{\"eventSource\":\"aws:s3\",\"awsRegion\":\"us-east-1\",\"eventName\":\"ObjectCreated:Put\",\"s3\":{\"s3SchemaVersion\":\"1.0\",\"bucket\":{\"name\":\"%s\"},\"object\":{\"key\":\"%s\"}}}]}"}`, retryMessage.Bucket, retryMessage.Key)
 	sqsMessage := sqs.Message{}
 	sqsMessage.SetBody(str)
+
 	return handler.HandleSQSMessage(&sqsMessage)
 }
