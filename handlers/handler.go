@@ -135,7 +135,7 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 			k8sJob, err := GetJobStatusByID(jobInfo.UID)
 			if err != nil {
 				glog.Errorf("Can not get k8s job %s. Detail %s. Resend the message to the queue", jobInfo.Name, err)
-				handler.ResendSQSMessage(handler.QueueURL, k8sJob.SQSMessage)
+				handler.ResendSQSMessage(handler.QueueURL, jobInfo.SQSMessage)
 			} else {
 				glog.Infof("%s: %s", k8sJob.Name, k8sJob.Status)
 				if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" {
@@ -278,13 +278,13 @@ func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
 			glog.Errorln(err)
 			return err
 		}
+		jobInfo.SQSMessage = message
 		out, err := json.Marshal(jobInfo)
 		if err != nil {
 			glog.Infof("Error :%s", err)
 			glog.Errorln(err)
 			return err
 		}
-		jobInfo.SQSMessage = message
 		glog.Info(string(out))
 		handler.Mu.Lock()
 		handler.MonitoredJobs = append(handler.MonitoredJobs, jobInfo)
