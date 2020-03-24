@@ -8,74 +8,8 @@ import (
 
 // RegisterSQSHandler registers endpoints
 func (handler *SQSHandler) RegisterSQSHandler() {
-	http.HandleFunc("/server", handler.ServiceHandler)
-	http.HandleFunc("/sqs", handler.SQSHandler)
 	http.HandleFunc("/jobConfig", handler.HandleJobConfig)
 	http.HandleFunc("/dispatchJob", handler.HandleDispatchJob)
-}
-
-// ServiceHandler handles stop/start/status the SQS querrying service
-// To start the server
-//		curl -X POST http://localhost/server?start=true
-// To stop the server
-//		curl -X POST http://localhost/server?start=false
-// To check the status
-// 		curl http://localhost/server
-func (handler *SQSHandler) ServiceHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "PUT" {
-		val := r.URL.Query().Get("start")
-		if val == "true" {
-			if err := handler.StartServer(); err != nil {
-				fmt.Fprintf(w, fmt.Sprintf("Can not start a server. Detail %s", err))
-			} else {
-				fmt.Fprintf(w, "Successfully start a server")
-			}
-		} else if val == "false" {
-			if err := handler.ShutdownServer(); err != nil {
-				fmt.Fprintf(w, fmt.Sprintf("Can not shutdown the server. Detail %s", err))
-			} else {
-				fmt.Fprintf(w, "Successfully shutdown the server")
-			}
-		}
-
-	} else if r.Method == "GET" {
-		if handler.Server != nil {
-			fmt.Fprintf(w, "SQS server is running")
-		} else {
-			fmt.Fprintf(w, "SQS server is not running")
-		}
-	} else {
-		http.Error(w, "Not supported request method.", 405)
-	}
-
-}
-
-// SQSHandler handles update/get SQS URL string
-// to update SQS url
-//		curl -X PUT http://localhost/sqs?url=http://sqs.aws.example
-// to get current sqs url
-//		curl http://localhost/sqs
-func (handler *SQSHandler) SQSHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "PUT" {
-		handler.QueueURL = r.URL.Query().Get("url")
-
-		if err := handler.ShutdownServer(); err != nil {
-			fmt.Fprintf(w, fmt.Sprintf("Can not shutdown the server. Detail %s", err))
-		} else {
-			fmt.Fprintf(w, "Successfully shutdown the server")
-		}
-
-		if err := handler.StartServer(); err != nil {
-			fmt.Fprintf(w, fmt.Sprintf("Can not start a server. Detail %s", err))
-		} else {
-			fmt.Fprintf(w, "Successfully start a server")
-		}
-
-	} else if r.Method == "GET" {
-		fmt.Fprintf(w, handler.QueueURL)
-	} else {
-		http.Error(w, "Not supported request method.", 405)
-	}
 }
 
 // HandleJobConfig handles job config endpoints

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,17 +9,14 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/golang/glog"
-	mq "github.com/remind101/mq-go"
 )
-
-const MAX_RETRIES = 3
 
 type SQSHandler struct {
 	QueueURL      string
 	Start         bool
 	JobConfigs    []JobConfig
-	Server        *mq.Server
 	MonitoredJobs []*JobInfo
 	Mu            sync.Mutex
 }
@@ -49,27 +45,84 @@ func NewSQSHandler(queueURL string) *SQSHandler {
 
 // StartServer starts a server
 func (handler *SQSHandler) StartServer() error {
-	// return nil if the server already start
-	if handler.Server != nil {
-		return nil
-	}
 
+	glog.Info("Starting a new server ...")
+
+	go handler.StartConsumingProcess()
+	go handler.StartMonitoringProcess()
+	go handler.RemoveCompletedJobsProcess()
+
+	glog.Info("The server is started")
+
+	return nil
+
+}
+
+// StartConsumingProcess starts consumming the queue
+func (handler *SQSHandler) StartConsumingProcess() error {
 	newClient, err := NewSQSClient()
 	if err != nil {
 		return err
 	}
 
-	glog.Info("Starting a new server...")
-	handler.Server = mq.NewServer(handler.QueueURL, mq.HandlerFunc(func(m *mq.Message) error {
-		return handler.HandleSQSMessage(aws.StringValue(m.SQSMessage.Body))
-	}), mq.WithClient(newClient))
-	handler.Server.Start()
-	glog.Info("The server is started")
+	receiveParams := &sqs.ReceiveMessageInput{
+		QueueUrl:            aws.String(handler.QueueURL),
+		MaxNumberOfMessages: aws.Int64(1),
+		VisibilityTimeout:   aws.Int64(30),
+		WaitTimeSeconds:     aws.Int64(20),
+	}
+	for {
+		time.Sleep(1 * time.Second)
+		receiveResp, err := newClient.ReceiveMessage(receiveParams)
+		if err != nil {
+			glog.Error(err)
+		}
 
-	go handler.StartMonitoringProcess()
-	go handler.RemoveCompletedJobsProcess()
+		for _, message := range receiveResp.Messages {
+			err := handler.HandleSQSMessage(message)
+			if err != nil {
+				glog.Errorf("Can not process the message. Error %s. Message %s", err, *message.Body)
+				continue
+			}
 
+			handler.RemoveSQSMessage(message)
+
+		}
+
+	}
+}
+
+// RemoveSQSMessage removes SQS message
+func (handler *SQSHandler) RemoveSQSMessage(message *sqs.Message) error {
+	newClient, err := NewSQSClient()
+	if err != nil {
+		return err
+	}
+	deleteParams := &sqs.DeleteMessageInput{
+		QueueUrl:      aws.String(handler.QueueURL), // Required
+		ReceiptHandle: message.ReceiptHandle,        // Required
+	}
+	_, err = newClient.DeleteMessage(deleteParams) // No response returned when successed.
+	if err != nil {
+		glog.Error(err)
+		return err
+	}
+	glog.Infof("Message ID: %s has beed deleted.\n\n", *message.MessageId)
 	return nil
+}
+
+// ResendSQSMessage resends the message
+func (handler *SQSHandler) ResendSQSMessage(queueURL string, message *sqs.Message) error {
+	newClient, err := NewSQSClient()
+	if err != nil {
+		return err
+	}
+	sentMessageInput := &sqs.SendMessageInput{
+		MessageBody: message.Body,
+		QueueUrl:    aws.String(queueURL),
+	}
+	_, err = newClient.SendMessage(sentMessageInput)
+	return err
 
 }
 
@@ -81,7 +134,8 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 		for _, jobInfo := range handler.MonitoredJobs {
 			k8sJob, err := GetJobStatusByID(jobInfo.UID)
 			if err != nil {
-				glog.Errorf("Can not get k8s job %s. Detail %s", jobInfo.Name, err)
+				glog.Errorf("Can not get k8s job %s. Detail %s. Resend the message to the queue", jobInfo.Name, err)
+				handler.ResendSQSMessage(handler.QueueURL, jobInfo.SQSMessage)
 			} else {
 				glog.Infof("%s: %s", k8sJob.Name, k8sJob.Status)
 				if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" {
@@ -105,17 +159,6 @@ func (handler *SQSHandler) RemoveCompletedJobsProcess() {
 		glog.Info("Start to remove completed jobs")
 		RemoveCompletedJobs()
 	}
-}
-
-// ShutdownServer shutdowns a server
-func (handler *SQSHandler) ShutdownServer() error {
-	fmt.Println("Shutdown the server")
-	if handler.Server == nil {
-		return nil
-	}
-	err := handler.Server.Shutdown(context.Background())
-	handler.Server = nil
-	return err
 }
 
 /*
@@ -202,8 +245,9 @@ to the queue and retry later (handled by `md` library). That makes sure
 the message is properly handle before it actually deleted
 
 */
-func (handler *SQSHandler) HandleSQSMessage(jsonBody string) error {
+func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
 
+	jsonBody := *message.Body
 	objectPaths := getObjectsFromSQSMessage(jsonBody)
 
 	jobNameList := make([]string, 0)
@@ -220,6 +264,7 @@ func (handler *SQSHandler) HandleSQSMessage(jsonBody string) error {
 			}
 		}
 	}
+	glog.Info("message:", jsonBody)
 
 	glog.Infof("Start to run %d jobs", len(jobMap))
 
@@ -227,14 +272,16 @@ func (handler *SQSHandler) HandleSQSMessage(jsonBody string) error {
 		for GetNumberRunningJobs() > GetMaxJobConfig() {
 			time.Sleep(5 * time.Second)
 		}
-		glog.Info("Processing: ", objectPath)
 		jobInfo, err := CreateK8sJob(objectPath, jobConfig)
 		if err != nil {
+			glog.Infof("Error :%s", err)
 			glog.Errorln(err)
 			return err
 		}
+		jobInfo.SQSMessage = message
 		out, err := json.Marshal(jobInfo)
 		if err != nil {
+			glog.Infof("Error :%s", err)
 			glog.Errorln(err)
 			return err
 		}
@@ -296,5 +343,8 @@ func (handler *SQSHandler) RetryCreateIndexingJob(jsonBytes []byte) error {
 	str := fmt.Sprintf(`{
 		"Type" : "Notification",
 		"Message" : "{\"Records\":[{\"eventSource\":\"aws:s3\",\"awsRegion\":\"us-east-1\",\"eventName\":\"ObjectCreated:Put\",\"s3\":{\"s3SchemaVersion\":\"1.0\",\"bucket\":{\"name\":\"%s\"},\"object\":{\"key\":\"%s\"}}}]}"}`, retryMessage.Bucket, retryMessage.Key)
-	return handler.HandleSQSMessage(str)
+	sqsMessage := sqs.Message{}
+	sqsMessage.SetBody(str)
+
+	return handler.HandleSQSMessage(&sqsMessage)
 }
