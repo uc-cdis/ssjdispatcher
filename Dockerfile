@@ -1,5 +1,7 @@
 FROM golang:1.14 as build-deps
 
+RUN go get k8s.io/klog/v2
+
 RUN go get -tags k8s.io/client-go/kubernetes \
     k8s.io/apimachinery/pkg/apis/meta/v1 \
     k8s.io/api/core/v1 \
