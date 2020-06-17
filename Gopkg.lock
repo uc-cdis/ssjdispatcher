@@ -2,7 +2,7 @@
 
 
 [[projects]]
-  digest = "1:08683bc266aadf774c547a6d7979145e65ebce44a8a3128063e5dc7aa9a8093d"
+  digest = "1:188e0c45834d18c770bb76f8e8a95bb9196b7c38ecc56ceff0a69f09f4134831"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -44,8 +44,8 @@
     "service/sts/stsiface",
   ]
   pruneopts = "UT"
-  revision = "0a5c2d98b55ddac784af0696c0e6393072c3619e"
-  version = "v1.32.4"
+  revision = "662385f2878df266eb80077fd5554c17534b3864"
+  version = "v1.32.5"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
@@ -363,8 +363,8 @@
     "storage/v1beta1",
   ]
   pruneopts = "UT"
-  revision = "1e302578cbe7c928762bcfe8fe1dd5a3aaa07e94"
-  version = "v0.18.3"
+  revision = "acc6676ee074988cfc59707ef5df1cd551ea43b7"
+  version = "v0.18.4"
 
 [[projects]]
   digest = "1:694d0fc559b0ed0c43b72f336fcf2eb8d2702e6417d681b354f4deb4b00180e6"
@@ -406,8 +406,8 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = "UT"
-  revision = "0da73201eee14a28f587e2d022e1c4ffb05d66d5"
-  version = "v0.17.6"
+  revision = "f6abbbcb110a32998a4d2432ce9723f19461ddae"
+  version = "v0.17.7"
 
 [[projects]]
   digest = "1:21b1fed79226c15e7d7666ca9bf914590daa86af9c6fcdc9dbec34ae6d54f2e6"
