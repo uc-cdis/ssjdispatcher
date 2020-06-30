@@ -132,6 +132,7 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 		var nextMonitoredJobs []*JobInfo
 
 		for _, jobInfo := range handler.MonitoredJobs {
+			// Actual completed jobs have been deleted. Just keep their states only
 			if jobInfo.Status != "Completed" {
 				k8sJob, err := GetJobStatusByID(jobInfo.UID)
 				if err != nil {
