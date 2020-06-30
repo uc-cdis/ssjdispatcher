@@ -353,3 +353,12 @@ func (handler *SQSHandler) RetryCreateIndexingJob(jsonBytes []byte) error {
 
 	return handler.HandleSQSMessage(&sqsMessage)
 }
+
+func (handler *SQSHandler) getJobStatusByCheckingMonitoredJobs(url string) string {
+	for _, jobInfo := range handler.MonitoredJobs {
+		if jobInfo.URL == url {
+			return jobInfo.Status
+		}
+	}
+	return ""
+}

@@ -97,3 +97,18 @@ func (handler *SQSHandler) dispatchJob(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(w, "Successfully dispatch a new job!")
 }
+
+func (handler *SQSHandler) getIndexingJobStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Not supported request method.", 405)
+		return
+	}
+	url := r.URL.Query().Get("url")
+	if url != "" {
+		status := handler.getJobStatusByCheckingMonitoredJobs(url)
+		fmt.Fprintf(w, status)
+	} else {
+		http.Error(w, "Missing URL argument", 300)
+		return
+	}
+}
