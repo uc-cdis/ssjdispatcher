@@ -30,6 +30,7 @@ type JobInfo struct {
 	UID        string `json:"uid"`
 	Name       string `json:"name"`
 	Status     string `json:"status"`
+	URL        string `json:"url"`
 	SQSMessage *sqs.Message
 }
 
@@ -287,6 +288,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	ji := JobInfo{}
 	ji.Name = newJob.Name
 	ji.UID = string(newJob.GetUID())
+	ji.URL = inputURL
 	ji.Status = jobStatusToString(&newJob.Status)
 	return &ji, nil
 }
