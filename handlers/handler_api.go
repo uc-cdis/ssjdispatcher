@@ -97,13 +97,3 @@ func (handler *SQSHandler) dispatchJob(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Fprintf(w, "Successfully dispatch a new job!")
 }
-
-func (handler *SQSHandler) getJobStatus(w http.ResponseWriter, r *http.Request) {
-	// Try to read the request body.
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		msg := fmt.Sprintf("failed to read request body; encountered error: %s", err)
-		http.Error(w, msg, http.StatusBadRequest)
-		return
-	}
-}
