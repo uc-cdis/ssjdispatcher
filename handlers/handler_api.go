@@ -116,7 +116,7 @@ func (handler *SQSHandler) getIndexingJobStatus(w http.ResponseWriter, r *http.R
 		status := handler.getJobStatusByCheckingMonitoredJobs(url)
 		fmt.Fprintf(w, status)
 	} else {
-		http.Error(w, "Missing URL argument", 300)
+		http.Error(w, "Missing url argument", 300)
 		return
 	}
 }
