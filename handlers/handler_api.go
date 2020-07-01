@@ -106,6 +106,7 @@ func (handler *SQSHandler) GetIndexingJobStatus(w http.ResponseWriter, r *http.R
 	}
 }
 
+// getIndexingJobStatus get indexing job status
 func (handler *SQSHandler) getIndexingJobStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, "Not supported request method.", 405)
