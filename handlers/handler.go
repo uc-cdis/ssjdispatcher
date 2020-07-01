@@ -145,6 +145,7 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 					}
 				}
 			} else {
+				glog.Infof("job %s is completed", jobInfo.URL)
 				nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
 			}
 
