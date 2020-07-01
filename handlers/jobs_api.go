@@ -38,32 +38,6 @@ func status(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getIndexingJobStatus(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Not supported request method.", 405)
-		return
-	}
-	url := r.URL.Query().Get("url")
-	if url != "" {
-		result, errUID := GetJobStatusByID(UID)
-		if errUID != nil {
-			http.Error(w, errUID.Error(), 500)
-			return
-		}
-
-		out, err := json.Marshal(result)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-
-		fmt.Fprintf(w, string(out))
-	} else {
-		http.Error(w, "Missing UID argument", 300)
-		return
-	}
-}
-
 // list all the jobs
 func list(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
