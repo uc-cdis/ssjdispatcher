@@ -132,15 +132,19 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 		var nextMonitoredJobs []*JobInfo
 
 		for _, jobInfo := range handler.MonitoredJobs {
-			k8sJob, err := GetJobStatusByID(jobInfo.UID)
-			if err != nil {
-				glog.Errorf("Can not get k8s job %s. Detail %s. Resend the message to the queue", jobInfo.Name, err)
-				handler.ResendSQSMessage(handler.QueueURL, jobInfo.SQSMessage)
+			if jobInfo.Status == "Completed" {
+				nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
 			} else {
-				glog.Infof("%s: %s", k8sJob.Name, k8sJob.Status)
-				if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" || k8sJob.Status == "Completed" {
-					jobInfo.Status = k8sJob.Status
-					nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
+				k8sJob, err := GetJobStatusByID(jobInfo.UID)
+				if err != nil {
+					glog.Errorf("Can not get k8s job %s. Detail %s. Resend the message to the queue", jobInfo.Name, err)
+					handler.ResendSQSMessage(handler.QueueURL, jobInfo.SQSMessage)
+				} else {
+					glog.Infof("%s: %s", k8sJob.Name, k8sJob.Status)
+					if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" || k8sJob.Status == "Completed" {
+						jobInfo.Status = k8sJob.Status
+						nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
+					}
 				}
 			}
 		}
@@ -157,7 +161,7 @@ func (handler *SQSHandler) RemoveCompletedJobsProcess() {
 	for {
 		time.Sleep(300 * time.Second)
 		glog.Info("Start to remove completed jobs")
-		RemoveCompletedJobs()
+		RemoveCompletedJobs(handler.MonitoredJobs)
 	}
 }
 
