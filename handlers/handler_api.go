@@ -99,7 +99,7 @@ func (handler *SQSHandler) dispatchJob(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Successfully dispatch a new job!")
 }
 
-// GetIndexingJobStatus dispatch an job
+// GetIndexingJobStatus get indexing job status
 func (handler *SQSHandler) GetIndexingJobStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		handler.getIndexingJobStatus(w, r)
