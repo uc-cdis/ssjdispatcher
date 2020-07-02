@@ -50,7 +50,7 @@ func (handler *SQSHandler) StartServer() error {
 
 	go handler.StartConsumingProcess()
 	go handler.StartMonitoringProcess()
-	//go handler.RemoveCompletedJobsProcess()
+	go handler.RemoveCompletedJobsProcess()
 
 	glog.Info("The server is started")
 
