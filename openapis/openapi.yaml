@@ -1,0 +1,158 @@
+openapi: 3.0.1
+info:
+  title: Ssjdispatcher API
+  description: job dispatcher
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+  contact:
+    name: Giang Bui
+    email: giangbui@uchicago.edu
+    url: https://ctds.uchicago.edu
+servers:
+- url: https://qa-dcp.planx-pla.net/sower/
+tags:
+- name: ssjdispatcher
+  description: Operations on job dispatch
+security:
+  - bearerAuth: []
+paths:
+  /dispatchJob:
+    post:
+      tags:
+      - ssjdispatcher
+      summary: DispatchAJob
+      operationId: dispatch
+      parameters:
+      - in: "query"
+        name: "body"
+        description: "Input JSON"
+        required: true
+        schema:
+          type: "object"
+          properties:
+            action:
+              type: "string"
+            input:
+              type: "object"
+      responses:
+        200:
+          description: job successfully dispatched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobInfo"
+  /indexingJobStatus:
+    post:
+      tags:
+      - ssjdispatcher
+      summary: get indexing job status
+      operationId: indexingJobStatus
+      parameters:
+      - in: "query"
+        name: "url"
+        description: "S3 object url"
+        required: true
+        schema:
+          type: "object"
+          properties:
+            action:
+              type: "string"
+            input:
+              type: "object"
+      responses:
+        200:
+          description: job status
+  /status:
+    get:
+      tags:
+      - ssjdispatcher
+      summary: Get the status of a job
+      operationId: status
+      parameters:
+      - in: "query"
+        name: "uid"
+        description: "Job UID"
+        required: true
+        schema:
+          type: "integer"
+      responses:
+        200:
+          description: job status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobInfo"
+  /list:
+    get:
+      tags:
+      - ssjdispatcher
+      summary: List all running jobs
+      operationId: list
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobInfo"
+  /output:
+    get:
+      tags:
+      - ssjdispatcher
+      summary: Get the output of the job run
+      operationId: output
+      responses:
+        200:
+          description: result of the job execution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Output"
+  /_status:
+    get:
+      tags:
+      - ssjdispatcher
+      summary: Get the health status of sower
+      operationId: _status
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/text:
+              schema:
+                $ref: "#/components/schemas/Status"
+components:
+  securitySchemes:
+    bearerAuth:            # arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    JobInfo:
+      type: object
+      properties:
+        uid:
+          type: string
+          description: Unique identifier for the Job
+        name:
+          type: string
+          description: Name of the Job
+        status:
+          type: string
+          description: Running status for the Job
+    Output:
+      type: object
+      properties:
+        output:
+          type: string
+          description: Output from the running Job
+    Status:
+      type: string
+      enum: [Healthy]
+      description: >
+        Value:
+         * `Healthy` - The sower is running

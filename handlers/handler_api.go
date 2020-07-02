@@ -112,6 +112,7 @@ func (handler *SQSHandler) getIndexingJobStatus(w http.ResponseWriter, r *http.R
 		http.Error(w, "Not supported request method.", 405)
 		return
 	}
+	// get object url
 	url := r.URL.Query().Get("url")
 	if url != "" {
 		status := handler.getJobStatusByCheckingMonitoredJobs(url)
