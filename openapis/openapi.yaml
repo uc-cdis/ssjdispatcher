@@ -32,10 +32,10 @@ paths:
         schema:
           type: "object"
           properties:
-            action:
+            bucket:
               type: "string"
-            input:
-              type: "object"
+            key:
+              type: "string"
       responses:
         200:
           description: job successfully dispatched
@@ -50,17 +50,11 @@ paths:
       summary: get indexing job status
       operationId: indexingJobStatus
       parameters:
-      - in: "query"
-        name: "url"
+      - name: "url"
+        in: path
         description: "S3 object url"
         required: true
-        schema:
-          type: "object"
-          properties:
-            action:
-              type: "string"
-            input:
-              type: "object"
+        type: "string"
       responses:
         200:
           description: job status
