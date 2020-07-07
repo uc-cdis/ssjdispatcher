@@ -28,6 +28,7 @@ type JobConfig struct {
 	ImageConfig interface{} `image_config`
 	RequestCPU  string      `request_cpu`
 	RequestMem  string      `request_mem`
+	DeadLine    int64       `dead_line`
 }
 
 type RetryMessage struct {

@@ -205,6 +205,12 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 		jobConfig.RequestMem = "0.1Gi"
 	}
 
+	if jobConfig.DeadLine != nil {
+		deadline = jobConfig.DeadLine
+	}
+
+	glog.Info("Deadline: ", deadline)
+
 	quayImage := jobConfig.Image
 	val, ok := os.LookupEnv("JOB_IMAGES")
 	if ok {
