@@ -205,7 +205,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 		jobConfig.RequestMem = "0.1Gi"
 	}
 
-	if jobConfig.DeadLine != nil {
+	if jobConfig.DeadLine != 0 {
 		deadline = jobConfig.DeadLine
 	}
 
