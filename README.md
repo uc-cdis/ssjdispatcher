@@ -16,6 +16,7 @@ JobConfig is an json-base string to register an job. An example might be somethi
           {
             "name": "indexing",
             "pattern": "s3://bucket/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}/.*",
+            "deadline": 3600,
             "image": "quay.io/cdis/indexs3client:master",
             "imageConfig": {
               "url": "http://indexd-service/",
