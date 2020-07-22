@@ -221,6 +221,12 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 		quayImage = quayImageIf.(string)
 	}
 
+	serviceAccount := "ssjdispatcher-job-sa"
+	if jobConfig.ServiceAccount != "" {
+		serviceAccount = jobConfig.ServiceAccount
+	}
+	glog.Info("Job service account: ", serviceAccount)
+
 	// For an example of how to create jobs, see this file:
 	// https://github.com/pachyderm/pachyderm/blob/805e63/src/server/pps/server/api_server.go#L2320-L2345
 	batchJob := &batchv1.Job{
@@ -246,7 +252,8 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 					Labels: labels,
 				},
 				Spec: k8sv1.PodSpec{
-					InitContainers: []k8sv1.Container{}, // Doesn't seem obligatory(?)...
+					InitContainers:     []k8sv1.Container{}, // Doesn't seem obligatory(?)...
+					ServiceAccountName: serviceAccount,
 					Containers: []k8sv1.Container{
 						{
 							Name:  "job-task",
