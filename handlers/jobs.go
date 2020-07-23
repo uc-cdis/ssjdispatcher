@@ -181,6 +181,19 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	accessKeyIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "aws_access_key_id"})
 	secretKeyIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "aws_secret_access_key"})
 
+	awsRegion := ""
+	if regionIf != nil {
+		awsRegion = regionIf.(string)
+	}
+	awsAccessKey := ""
+	if accessKeyIf != nil {
+		awsAccessKey = accessKeyIf.(string)
+	}
+	awsSecretKey := ""
+	if secretKeyIf != nil {
+		awsSecretKey = secretKeyIf.(string)
+	}
+
 	configBytes, err := json.Marshal(jobConfig.ImageConfig)
 	if err != nil {
 		return nil, err
@@ -275,15 +288,15 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 								},
 								{
 									Name:  "AWS_REGION",
-									Value: regionIf.(string),
+									Value: awsRegion,
 								},
 								{
 									Name:  "AWS_ACCESS_KEY_ID",
-									Value: accessKeyIf.(string),
+									Value: awsAccessKey,
 								},
 								{
 									Name:  "AWS_SECRET_ACCESS_KEY",
-									Value: secretKeyIf.(string),
+									Value: awsSecretKey,
 								},
 								{
 									Name:  "CONFIG_FILE",
