@@ -23,13 +23,14 @@ func NewSQSClient() (sqsiface.SQSAPI, error) {
 		return nil, err
 	}
 
-	config := aws.NewConfig().WithCredentials(credentials.NewEnvCredentials())
 	if cred.region != "" && cred.awsAccessKeyID != "" && cred.awsSecretAccessKey != "" {
-		config = aws.NewConfig().WithRegion(cred.region).
-			WithCredentials(credentials.NewStaticCredentials(cred.awsAccessKeyID, cred.awsSecretAccessKey, ""))
+		config := aws.NewConfig().WithRegion(cred.region).WithCredentials(credentials.NewStaticCredentials(cred.awsAccessKeyID, cred.awsSecretAccessKey, ""))
+		return sqs.New(session.New(config)), nil
+	} else {
+		sess, _ := session.NewSession()
+		return sqs.New(sess), nil
 	}
 
-	return sqs.New(session.New(config)), nil
 }
 
 // loadCredentialFromConfigFile loads AWS credentials from the config file
