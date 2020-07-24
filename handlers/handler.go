@@ -22,13 +22,14 @@ type SQSHandler struct {
 }
 
 type JobConfig struct {
-	Name        string      `name`
-	Pattern     string      `pattern`
-	Image       string      `image`
-	ImageConfig interface{} `image_config`
-	RequestCPU  string      `request_cpu`
-	RequestMem  string      `request_mem`
-	DeadLine    int64       `deadline`
+	Name           string      `name`
+	Pattern        string      `pattern`
+	Image          string      `image`
+	ImageConfig    interface{} `image_config`
+	RequestCPU     string      `request_cpu`
+	RequestMem     string      `request_mem`
+	DeadLine       int64       `deadline`
+	ServiceAccount string      `serviceaccount`
 }
 
 type RetryMessage struct {

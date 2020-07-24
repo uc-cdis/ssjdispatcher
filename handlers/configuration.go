@@ -9,7 +9,7 @@ import (
 func LookupCredFile() string {
 	val, found := os.LookupEnv("CRED_FILE")
 	if found == false {
-		val = "./credentials.json"
+		val = "/credentials.json"
 	}
 	return val
 }

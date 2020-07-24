@@ -181,6 +181,19 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	accessKeyIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "aws_access_key_id"})
 	secretKeyIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "aws_secret_access_key"})
 
+	awsRegion := ""
+	if regionIf != nil {
+		awsRegion = regionIf.(string)
+	}
+	awsAccessKey := ""
+	if accessKeyIf != nil {
+		awsAccessKey = accessKeyIf.(string)
+	}
+	awsSecretKey := ""
+	if secretKeyIf != nil {
+		awsSecretKey = secretKeyIf.(string)
+	}
+
 	configBytes, err := json.Marshal(jobConfig.ImageConfig)
 	if err != nil {
 		return nil, err
@@ -221,6 +234,12 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 		quayImage = quayImageIf.(string)
 	}
 
+	serviceAccount := "ssjdispatcher-job-sa"
+	if jobConfig.ServiceAccount != "" {
+		serviceAccount = jobConfig.ServiceAccount
+	}
+	glog.Info("Job service account: ", serviceAccount)
+
 	// For an example of how to create jobs, see this file:
 	// https://github.com/pachyderm/pachyderm/blob/805e63/src/server/pps/server/api_server.go#L2320-L2345
 	batchJob := &batchv1.Job{
@@ -246,7 +265,8 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 					Labels: labels,
 				},
 				Spec: k8sv1.PodSpec{
-					InitContainers: []k8sv1.Container{}, // Doesn't seem obligatory(?)...
+					InitContainers:     []k8sv1.Container{}, // Doesn't seem obligatory(?)...
+					ServiceAccountName: serviceAccount,
 					Containers: []k8sv1.Container{
 						{
 							Name:  "job-task",
@@ -268,15 +288,15 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 								},
 								{
 									Name:  "AWS_REGION",
-									Value: regionIf.(string),
+									Value: awsRegion,
 								},
 								{
 									Name:  "AWS_ACCESS_KEY_ID",
-									Value: accessKeyIf.(string),
+									Value: awsAccessKey,
 								},
 								{
 									Name:  "AWS_SECRET_ACCESS_KEY",
-									Value: secretKeyIf.(string),
+									Value: awsSecretKey,
 								},
 								{
 									Name:  "CONFIG_FILE",

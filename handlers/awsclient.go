@@ -23,10 +23,14 @@ func NewSQSClient() (sqsiface.SQSAPI, error) {
 		return nil, err
 	}
 
-	config := aws.NewConfig().WithRegion(cred.region).
-		WithCredentials(credentials.NewStaticCredentials(cred.awsAccessKeyID, cred.awsSecretAccessKey, ""))
+	if cred.region != "" && cred.awsAccessKeyID != "" && cred.awsSecretAccessKey != "" {
+		config := aws.NewConfig().WithRegion(cred.region).WithCredentials(credentials.NewStaticCredentials(cred.awsAccessKeyID, cred.awsSecretAccessKey, ""))
+		return sqs.New(session.New(config)), nil
+	} else {
+		sess, _ := session.NewSession()
+		return sqs.New(sess), nil
+	}
 
-	return sqs.New(session.New(config)), nil
 }
 
 // loadCredentialFromConfigFile loads AWS credentials from the config file
@@ -39,19 +43,19 @@ func loadCredentialFromConfigFile(path string) (*AWSCredentials, error) {
 	}
 
 	if region, err := GetValueFromJSON(jsonBytes, []string{"AWS", "region"}); err != nil {
-		glog.Fatalln("Can not read region from credential file")
+		glog.Info("Can not read region from credential file. Gonna use attached service account")
 	} else {
 		credentials.region = region.(string)
 	}
 
 	if awsKeyID, err := GetValueFromJSON(jsonBytes, []string{"AWS", "aws_access_key_id"}); err != nil {
-		glog.Fatalln("Can not read aws key from credential file")
+		glog.Info("Can not read aws key from credential file. Gonna use attached service account ")
 	} else {
 		credentials.awsAccessKeyID = awsKeyID.(string)
 	}
 
 	if awsSecret, err := GetValueFromJSON(jsonBytes, []string{"AWS", "aws_secret_access_key"}); err != nil {
-		glog.Fatalln("Can not read aws key from credential file")
+		glog.Info("Can not read aws secret key from credential file. Gonna use attached service account")
 	} else {
 		credentials.awsSecretAccessKey = awsSecret.(string)
 	}

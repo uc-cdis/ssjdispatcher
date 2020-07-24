@@ -1,15 +1,11 @@
 /*
 K8S Dispatcher Service
-
 // register SQS url
 curl -X PUT http://localhost:8000/sqs?url=https://sqs.us-east-1.amazonaws.com/440721843528/mySQS
-
 // start the service/server
 curl -X PUT http://localhost:8000/server?start=true
-
 // register new job
 curl -X POST http://localhost:8000/job -d '{"Name":"TEST3", "Pattern":"s3://test/*","Image":"quay.io/cdis/indexs3client:master", "ImageConfig":{}}'
-
 */
 package main
 
