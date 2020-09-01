@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -326,4 +329,24 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	ji.URL = inputURL
 	ji.Status = jobStatusToString(&newJob.Status)
 	return &ji, nil
+}
+
+// CreateSowerJob creates a sower job
+func CreateSowerJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
+	requestBody, err := json.Marshal(map[string]string{
+		"action": "object-indexing",
+		"input":  "",
+	})
+	resp, err := http.Post("http://sower-service/dispatch", "application/json", bytes.NewBuffer(requestBody))
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	glog.Info(string(body))
+	return nil, err
+
 }
