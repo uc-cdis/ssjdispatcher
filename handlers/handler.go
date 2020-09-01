@@ -278,23 +278,28 @@ func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
 		for GetNumberRunningJobs() > GetMaxJobConfig() {
 			time.Sleep(5 * time.Second)
 		}
-		jobInfo, err := CreateK8sJob(objectPath, jobConfig)
-		if err != nil {
-			glog.Infof("Error :%s", err)
-			glog.Errorln(err)
-			return err
+
+		CreateSowerJob(objectPath, jobConfig)
+
+		if 1 == 0 {
+			jobInfo, err := CreateK8sJob(objectPath, jobConfig)
+			if err != nil {
+				glog.Infof("Error :%s", err)
+				glog.Errorln(err)
+				return err
+			}
+			jobInfo.SQSMessage = message
+			out, err := json.Marshal(jobInfo)
+			if err != nil {
+				glog.Infof("Error :%s", err)
+				glog.Errorln(err)
+				return err
+			}
+			glog.Info(string(out))
+			handler.Mu.Lock()
+			handler.MonitoredJobs = append(handler.MonitoredJobs, jobInfo)
+			handler.Mu.Unlock()
 		}
-		jobInfo.SQSMessage = message
-		out, err := json.Marshal(jobInfo)
-		if err != nil {
-			glog.Infof("Error :%s", err)
-			glog.Errorln(err)
-			return err
-		}
-		glog.Info(string(out))
-		handler.Mu.Lock()
-		handler.MonitoredJobs = append(handler.MonitoredJobs, jobInfo)
-		handler.Mu.Unlock()
 	}
 
 	return nil
