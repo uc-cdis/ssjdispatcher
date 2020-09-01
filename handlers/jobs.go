@@ -333,12 +333,16 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 
 // CreateSowerJob creates a sower job
 func CreateSowerJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
-	s := fmt.Sprintf("{\"URL\": \"%s\"}", inputURL)
-	fmt.Println(s)
+	//s := fmt.Sprintf("{\"URL\": \"%s\"}", inputURL)
+	s, _ := json.Marshal(map[string]string{
+		"URL": inputURL,
+	})
+
+	fmt.Println(string(s))
 
 	requestBody, err := json.Marshal(map[string]string{
 		"action": "object-indexing",
-		"input":  s,
+		"input":  string(s),
 	})
 
 	resp, err := http.Post("http://sower-service/dispatch", "application/json", bytes.NewBuffer(requestBody))
