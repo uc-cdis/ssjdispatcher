@@ -340,7 +340,7 @@ func CreateSowerJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 
 	// fmt.Println(string(s))
 
-	requestBody := fmt.Sprintf(`{"action":"object-indexing", "input": {"URL": "%s"}}`, inputURL)
+	requestBody := fmt.Sprintf(`{"action":"index-object", "input": {"URL": "%s"}}`, inputURL)
 
 	resp, err := http.Post("http://sower-service/dispatch", "application/json", bytes.NewBuffer([]byte(requestBody)))
 
