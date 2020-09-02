@@ -333,12 +333,6 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 
 // CreateSowerJob creates a sower job
 func CreateSowerJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
-	//s := fmt.Sprintf("{\"URL\": \"%s\"}", inputURL)
-	// s, _ := json.Marshal(map[string]string{
-	// 	"URL": inputURL,
-	// })
-
-	// fmt.Println(string(s))
 
 	requestBody := fmt.Sprintf(`{"action":"index-object", "input": {"URL": "%s"}}`, inputURL)
 
@@ -351,7 +345,12 @@ func CreateSowerJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	jobinfo := new(JobInfo)
+	_ = json.Unmarshal(body, &jobinfo)
 	glog.Info(string(body))
-	return nil, err
+	return jobinfo, nil
 
 }
