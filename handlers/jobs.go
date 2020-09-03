@@ -56,6 +56,7 @@ func CreateSowerJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 
 	requestBody := fmt.Sprintf(`{"action":"index-object", "input": {"URL": "%s"}}`, inputURL)
 
+	// TODO: Need to obtain a token and add to the post request header
 	resp, err := http.Post(fmt.Sprintf("%s/dispatch", SOWER_URL), "application/json", bytes.NewBuffer([]byte(requestBody)))
 
 	if err != nil {
