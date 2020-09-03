@@ -271,6 +271,8 @@ func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
 			time.Sleep(5 * time.Second)
 		}
 
+		glog.Info("create sower job")
+
 		jobInfo, err := CreateSowerJob(objectPath, jobConfig)
 
 		//jobInfo, err := CreateK8sJob(objectPath, jobConfig)

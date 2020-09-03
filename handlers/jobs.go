@@ -22,7 +22,7 @@ var (
 )
 
 // SOWER_URL
-const SOWER_URL = "http://sower-service/"
+const SOWER_URL = "http://sower-service"
 
 type JobsArray struct {
 	JobInfo []JobInfo `json:"jobs"`
