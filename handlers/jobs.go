@@ -75,6 +75,7 @@ func CreateSowerJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 
 }
 
+// GetJobStatusByID
 func GetJobStatusByID(jobID string) (*JobInfo, error) {
 	resp, err := http.Get(fmt.Sprintf("%s/status?UID=%s", SOWER_URL, jobID))
 	if err != nil {
