@@ -38,14 +38,16 @@ func init() {
 	flag.Parse()
 }
 
+// Check that all "indexing" jobs have both Indexd and Metadata Service creds
+// configured. If not, return an error.
 func checkIndexingJobsImageConfig(jobConfigs []handlers.JobConfig) error {
 	for _, jobConfig := range jobConfigs {
 		if jobConfig.Name == "indexing" {
 			imageConfig := jobConfig.ImageConfig.(map[string]interface{})
 			if imageConfig["url"].(string) == "" || imageConfig["username"].(string) == "" || imageConfig["password"].(string) == "" {
-				return errors.New("indexing job imageConfig section missing indexd url and/or creds")
+				return errors.New("indexing job imageConfig section missing indexd url and/or creds!")
 			}
-			mdsErrorMessage := "indexing job imageConfig section missing metadataService url and/or creds"
+			mdsErrorMessage := "indexing job imageConfig section missing metadataService url and/or creds!"
 			if mdsConfig, ok := imageConfig["metadataService"]; ok {
 				mdsConfig := mdsConfig.(map[string]interface{})
 				if mdsConfig["url"].(string) == "" || mdsConfig["username"].(string) == "" || mdsConfig["password"].(string) == "" {
@@ -63,13 +65,13 @@ func main() {
 	jsonBytes, err := handlers.ReadFile(handlers.LookupCredFile())
 	if err != nil {
 		glog.Errorln("Can not read credential file!")
-		return
+		os.Exit(1)
 	}
 
 	var sqsURL string
 	if sqs, err := handlers.GetValueFromJSON(jsonBytes, []string{"SQS", "url"}); err != nil {
 		glog.Errorln("Can not read SQS url from credential file!")
-		return
+		os.Exit(1)
 	} else {
 		sqsURL = sqs.(string)
 	}
@@ -85,7 +87,7 @@ func main() {
 
 	if err := checkIndexingJobsImageConfig(jobConfigs); err != nil {
 		glog.Error(err)
-		return
+		os.Exit(1)
 	}
 
 	// start an SQSHandler instance
