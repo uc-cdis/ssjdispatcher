@@ -11,7 +11,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -38,29 +37,6 @@ func init() {
 	flag.Parse()
 }
 
-// Check that all "indexing" jobs have both Indexd and Metadata Service creds
-// configured. If not, return an error.
-func checkIndexingJobsImageConfig(jobConfigs []handlers.JobConfig) error {
-	for _, jobConfig := range jobConfigs {
-		if jobConfig.Name == "indexing" {
-			imageConfig := jobConfig.ImageConfig.(map[string]interface{})
-			if imageConfig["url"].(string) == "" || imageConfig["username"].(string) == "" || imageConfig["password"].(string) == "" {
-				return errors.New("indexing job imageConfig section missing indexd url and/or creds!")
-			}
-			mdsErrorMessage := "indexing job imageConfig section missing metadataService url and/or creds!"
-			if mdsConfig, ok := imageConfig["metadataService"]; ok {
-				mdsConfig := mdsConfig.(map[string]interface{})
-				if mdsConfig["url"].(string) == "" || mdsConfig["username"].(string) == "" || mdsConfig["password"].(string) == "" {
-					return errors.New(mdsErrorMessage)
-				}
-			} else {
-				return errors.New(mdsErrorMessage)
-			}
-		}
-	}
-	return nil
-}
-
 func main() {
 	jsonBytes, err := handlers.ReadFile(handlers.LookupCredFile())
 	if err != nil {
@@ -85,7 +61,7 @@ func main() {
 	jobConfigs := make([]handlers.JobConfig, 0)
 	json.Unmarshal(b, &jobConfigs)
 
-	if err := checkIndexingJobsImageConfig(jobConfigs); err != nil {
+	if err := handlers.CheckIndexingJobsImageConfig(jobConfigs); err != nil {
 		glog.Error(err)
 		os.Exit(1)
 	}
