@@ -56,6 +56,29 @@ func GetValueFromJSON(jsonBytes []byte, keys []string) (interface{}, error) {
 	return dataMap, nil
 }
 
+// Check that all "indexing" jobs have both Indexd and Metadata Service creds
+// configured. If not, return an error.
+func CheckIndexingJobsImageConfig(jobConfigs []JobConfig) error {
+	for _, jobConfig := range jobConfigs {
+		if jobConfig.Name == "indexing" {
+			imageConfig := jobConfig.ImageConfig.(map[string]interface{})
+			if (imageConfig["url"].(string) == "") || (imageConfig["username"].(string) == "") || (imageConfig["password"].(string) == "") {
+				return errors.New("indexing job imageConfig section missing indexd url and/or creds!")
+			}
+			mdsErrorMessage := "indexing job imageConfig section missing metadataService url and/or creds!"
+			if mdsConfig, ok := imageConfig["metadataService"]; ok {
+				mdsConfig := mdsConfig.(map[string]interface{})
+				if (mdsConfig["url"].(string) == "") || (mdsConfig["username"].(string) == "") || (mdsConfig["password"].(string) == "") {
+					return errors.New(mdsErrorMessage)
+				}
+			} else {
+				return errors.New(mdsErrorMessage)
+			}
+		}
+	}
+	return nil
+}
+
 func StringContainsPrefixInSlice(s string, prefixList []string) bool {
 	for _, prefix := range prefixList {
 		if strings.HasPrefix(s, prefix) {

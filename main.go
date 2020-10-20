@@ -41,13 +41,13 @@ func main() {
 	jsonBytes, err := handlers.ReadFile(handlers.LookupCredFile())
 	if err != nil {
 		glog.Errorln("Can not read credential file!")
-		return
+		os.Exit(1)
 	}
 
 	var sqsURL string
 	if sqs, err := handlers.GetValueFromJSON(jsonBytes, []string{"SQS", "url"}); err != nil {
 		glog.Errorln("Can not read SQS url from credential file!")
-		return
+		os.Exit(1)
 	} else {
 		sqsURL = sqs.(string)
 	}
@@ -60,6 +60,11 @@ func main() {
 	}
 	jobConfigs := make([]handlers.JobConfig, 0)
 	json.Unmarshal(b, &jobConfigs)
+
+	if err := handlers.CheckIndexingJobsImageConfig(jobConfigs); err != nil {
+		glog.Error(err)
+		os.Exit(1)
+	}
 
 	// start an SQSHandler instance
 	SQSHandler := handlers.NewSQSHandler(sqsURL)
