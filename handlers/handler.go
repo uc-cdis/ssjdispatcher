@@ -132,7 +132,7 @@ func (handler *SQSHandler) ResendSQSMessage(queueURL string, message *sqs.Messag
 func (handler *SQSHandler) StartMonitoringProcess() {
 	for {
 		var nextMonitoredJobs []*JobInfo
-
+		handler.Mu.Lock()
 		for _, jobInfo := range handler.MonitoredJobs {
 			if jobInfo.Status == "Completed" {
 				nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
@@ -151,7 +151,6 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 				nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
 			}
 		}
-		handler.Mu.Lock()
 		handler.MonitoredJobs = nextMonitoredJobs
 		handler.Mu.Unlock()
 
