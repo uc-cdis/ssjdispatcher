@@ -161,7 +161,7 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 // RemoveCompletedJobsProcess starts the process to remove completed jobs
 func (handler *SQSHandler) RemoveCompletedJobsProcess() {
 	for {
-		time.Sleep(300 * time.Second)
+		time.Sleep(time.Duration(GetCleanupTime()) * time.Second)
 		glog.Info("Start to remove completed jobs")
 		RemoveCompletedJobs(handler.MonitoredJobs)
 	}
