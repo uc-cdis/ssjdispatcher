@@ -29,7 +29,7 @@ func GetMaxJobConfig() int {
 func GetCleanupTime() int {
 	cleanupTime, err := strconv.Atoi(os.Getenv("CLEANUP_TIME"))
 	if err != nil {
-		cleanupTime = 60
+		cleanupTime = 120
 	}
 	return cleanupTime
 }
