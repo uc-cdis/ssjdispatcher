@@ -140,8 +140,9 @@ func jobStatusToString(status *batchv1.JobStatus) string {
 }
 
 // RemoveCompletedJobs removes all completed k8s jobs dispatched by the service
-func RemoveCompletedJobs(monitoredJobs []*JobInfo) {
+func RemoveCompletedJobs(monitoredJobs []*JobInfo) []string {
 	jobs := listJobs(getJobClient())
+	var deletedJobs []string
 	for i := 0; i < len(jobs.JobInfo); i++ {
 		job := jobs.JobInfo[i]
 		if job.Status == "Completed" {
@@ -154,9 +155,11 @@ func RemoveCompletedJobs(monitoredJobs []*JobInfo) {
 			}
 			if isMonitoredJob == true {
 				deleteJobByID(job.UID, GRACE_PERIOD)
+				deletedJobs = append(deletedJobs, job.UID)
 			}
 		}
 	}
+	return deletedJobs
 }
 
 // GetNumberRunningJobs returns number of k8s running jobs dispatched by the service

@@ -1,4 +1,4 @@
-FROM golang:1.14 as build-deps
+FROM quay.io/cdis/golang:1.15 as build-deps
 
 # Build static binary
 RUN mkdir -p /go/src/github.com/uc-cdis/ssjdispatcher
