@@ -25,6 +25,15 @@ func GetMaxJobConfig() int {
 	return maxJobNum
 }
 
+// GetCleanupTime returns the cleanuo time for completed jobs
+func GetCleanupTime() int {
+	cleanupTime, err := strconv.Atoi(os.Getenv("CLEANUP_TIME"))
+	if err != nil {
+		cleanupTime = 120
+	}
+	return cleanupTime
+}
+
 const (
 	GRACE_PERIOD int64 = 1 // grace period in seconds before a job is deleted
 )
