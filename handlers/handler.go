@@ -145,8 +145,9 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 					if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" || k8sJob.Status == "Completed" {
 						jobInfo.Status = k8sJob.Status
 					} else if k8sJob.Status == "Failed" {
-						glog.Errorf("The k8s job %s failed. Detail %s. Resend the message to the queue", jobInfo.Name, err)
-						handler.ResendSQSMessage(handler.QueueURL, jobInfo.SQSMessage)
+						glog.Errorf("The k8s job %s failed. Detail %s", jobInfo.Name, err)
+						//glog.Errorf("The k8s job %s failed. Detail %s. Resend the message to the queue", jobInfo.Name, err)
+						//handler.ResendSQSMessage(handler.QueueURL, jobInfo.SQSMessage)
 					}
 				}
 				nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
