@@ -13,6 +13,10 @@ import (
 	"github.com/golang/glog"
 )
 
+const (
+	MAX_RETRIES int = 3
+)
+
 type SQSHandler struct {
 	QueueURL      string
 	Start         bool
@@ -145,9 +149,15 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 					glog.Infof("%s: %s", k8sJob.Name, k8sJob.Status)
 					if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" || k8sJob.Status == "Completed" {
 						jobInfo.Status = k8sJob.Status
-						nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
+					} else if k8sJob.Status == "Failed" {
+						if jobInfo.Retries < MAX_RETRIES {
+							glog.Errorf("The k8s job %s failed. Detail %s. Resend the message to the queue", jobInfo.Name, err)
+							handler.ResendSQSMessage(handler.QueueURL, jobInfo.SQSMessage)
+							jobInfo.Retries += 1
+						}
 					}
 				}
+				nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
 			}
 		}
 		handler.Mu.Lock()
