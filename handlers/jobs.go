@@ -31,6 +31,7 @@ type JobInfo struct {
 	Name       string `json:"name"`
 	Status     string `json:"status"`
 	URL        string `json:"url"`
+	Retries    int    `json:"retries"`
 	SQSMessage *sqs.Message
 }
 
@@ -327,6 +328,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	ji.Name = newJob.Name
 	ji.UID = string(newJob.GetUID())
 	ji.URL = inputURL
+	ji.Retries = 0
 	ji.Status = jobStatusToString(&newJob.Status)
 	return &ji, nil
 }
