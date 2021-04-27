@@ -40,6 +40,12 @@ YAML file for the OpenAPI documentation is found in the `openapis` folder (in th
 
 ## Setup
 
+ssjdispatcher is generally deployed in a Gen3 environment and makes use of AWS resources.
+
+For instructions on how to set up ssjdispatcher and the relevant AWS resources with Gen3 cloud-automation, see [here](https://github.com/uc-cdis/cloud-automation/blob/master/doc/kube-setup-ssjdispatcher.md).
+
+For a high-level view of the context in which ssjdispatcher is used with Gen3 see [here](https://github.com/uc-cdis/cloud-automation/blob/master/doc/data_upload/README.md).
+
 ### Building From Source
 
 Build the go code with:
