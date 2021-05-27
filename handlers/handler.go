@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/golang/glog"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -156,7 +157,27 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 		handler.MonitoredJobs = nextMonitoredJobs
 		handler.Mu.Unlock()
 
+		out, _ := handler.sqsClient.GetQueueAttributes(&sqs.GetQueueAttributesInput{
+			AttributeNames: []*string{
+				aws.String("ApproximateNumberOfMessages"),
+				aws.String("ApproximateNumberOfMessagesVisible"),
+				aws.String("ApproximateNumberOfMessagesNotVisible"),
+			},
+		})
+		for k, v := range out.Attributes {
+			glog.Infof("queue attributes %s=%s", k, *v)
+		}
+
 		time.Sleep(30 * time.Second)
+
+		batchClient := getJobClient()
+		results, _ := batchClient.List(v1.ListOptions{Limit: 100})
+		for _, job := range results.Items {
+			glog.Infof("info: %s %s", job.Name, job.Status.String())
+			for k, v := range job.Annotations {
+				glog.Infof("  %s => %s", k, v)
+			}
+		}
 	}
 }
 
