@@ -51,7 +51,7 @@ func getJobClient() batchtypev1.JobInterface {
 }
 
 func getJobByID(jobId string) (*batchv1.Job, error) {
-	jobs, err := jobClient.List(metav1.ListOptions{})
+	jobs, err := getJobClient().List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func deleteJobByID(jobId string, afterSeconds int64) error {
 	var deletionPropagation metav1.DeletionPropagation = "Background"
 	deleteOption.PropagationPolicy = &deletionPropagation
 
-	if err = jobClient.Delete(job.Name, deleteOption); err != nil {
+	if err = getJobClient().Delete(job.Name, deleteOption); err != nil {
 		glog.Infoln(err)
 	}
 
@@ -100,7 +100,7 @@ func deleteJobByID(jobId string, afterSeconds int64) error {
 func listJobs() []JobInfo {
 	jobs := make([]JobInfo, 0)
 
-	jobsList, err := jobClient.List(metav1.ListOptions{})
+	jobsList, err := getJobClient().List(metav1.ListOptions{})
 	if err != nil {
 		glog.Errorf("error listing jobs %s", err)
 		return nil
@@ -290,7 +290,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 		// Optional, not used by pach: JobStatus:,
 	}
 
-	newJob, err := jobClient.Create(batchJob)
+	newJob, err := getJobClient().Create(batchJob)
 	if err != nil {
 		return nil, err
 	}
