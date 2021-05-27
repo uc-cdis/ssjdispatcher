@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/golang/glog"
 )
 
@@ -18,6 +19,7 @@ const (
 )
 
 type SQSHandler struct {
+	sqsClient     sqsiface.SQSAPI
 	QueueURL      string
 	Start         bool
 	JobConfigs    []JobConfig
@@ -44,6 +46,11 @@ type RetryMessage struct {
 // NewSQSHandler creates new SQSHandler instance
 func NewSQSHandler(queueURL string) *SQSHandler {
 	sqsHandler := new(SQSHandler)
+	sqsClient, err := NewSQSClient()
+	if err != nil {
+		panic(err)
+	}
+	sqsHandler.sqsClient = sqsClient
 	sqsHandler.QueueURL = queueURL
 	//sqsHandler.PatternMap = GetNewImagePatternMap()
 	return sqsHandler
@@ -66,11 +73,6 @@ func (handler *SQSHandler) StartServer() error {
 
 // StartConsumingProcess starts consumming the queue
 func (handler *SQSHandler) StartConsumingProcess() error {
-	newClient, err := NewSQSClient()
-	if err != nil {
-		return err
-	}
-
 	receiveParams := &sqs.ReceiveMessageInput{
 		QueueUrl:            aws.String(handler.QueueURL),
 		MaxNumberOfMessages: aws.Int64(1),
@@ -79,7 +81,7 @@ func (handler *SQSHandler) StartConsumingProcess() error {
 	}
 	for {
 		time.Sleep(1 * time.Second)
-		receiveResp, err := newClient.ReceiveMessage(receiveParams)
+		receiveResp, err := handler.sqsClient.ReceiveMessage(receiveParams)
 		if err != nil {
 			glog.Error(err)
 		}
@@ -100,15 +102,11 @@ func (handler *SQSHandler) StartConsumingProcess() error {
 
 // RemoveSQSMessage removes SQS message
 func (handler *SQSHandler) RemoveSQSMessage(message *sqs.Message) error {
-	newClient, err := NewSQSClient()
-	if err != nil {
-		return err
-	}
 	deleteParams := &sqs.DeleteMessageInput{
 		QueueUrl:      aws.String(handler.QueueURL), // Required
 		ReceiptHandle: message.ReceiptHandle,        // Required
 	}
-	_, err = newClient.DeleteMessage(deleteParams) // No response returned when successed.
+	_, err := handler.sqsClient.DeleteMessage(deleteParams) // No response returned when successed.
 	if err != nil {
 		glog.Error(err)
 		return err
@@ -119,15 +117,11 @@ func (handler *SQSHandler) RemoveSQSMessage(message *sqs.Message) error {
 
 // ResendSQSMessage resends the message
 func (handler *SQSHandler) ResendSQSMessage(queueURL string, message *sqs.Message) error {
-	newClient, err := NewSQSClient()
-	if err != nil {
-		return err
-	}
 	sentMessageInput := &sqs.SendMessageInput{
 		MessageBody: message.Body,
 		QueueUrl:    aws.String(queueURL),
 	}
-	_, err = newClient.SendMessage(sentMessageInput)
+	_, err := handler.sqsClient.SendMessage(sentMessageInput)
 	return err
 
 }
@@ -150,7 +144,7 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 						jobInfo.Status = k8sJob.Status
 					} else if k8sJob.Status == "Failed" {
 						if jobInfo.Retries < MAX_RETRIES {
-							glog.Errorf("The k8s job %s failed. Detail %s. Resend the message to the queue", jobInfo.Name, err)
+							glog.Errorf("The k8s job %s failed (%d/%d retries). Resend the message to the queue", jobInfo.Name, jobInfo.Retries, MAX_RETRIES)
 							handler.ResendSQSMessage(handler.QueueURL, jobInfo.SQSMessage)
 							jobInfo.Retries += 1
 						}
