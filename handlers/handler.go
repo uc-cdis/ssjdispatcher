@@ -174,6 +174,12 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 		results, _ := batchClient.List(v1.ListOptions{Limit: 100})
 		for _, job := range results.Items {
 			glog.Infof("info: %s %s", job.Name, job.Status.String())
+			for _, condition := range job.Status.Conditions {
+				if condition.Type == "Failed" && condition.Reason == "BackoffLimitExceeded" {
+					glog.Infof("this job is dead: %s", condition.Message)
+					batchClient.Delete(job.Name, &v1.DeleteOptions{})
+				}
+			}
 			for k, v := range job.Annotations {
 				glog.Infof("  %s => %s", k, v)
 			}
