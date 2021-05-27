@@ -8,7 +8,7 @@ import (
 // LookupCredFile looks up the credential file
 func LookupCredFile() string {
 	val, found := os.LookupEnv("CRED_FILE")
-	if found == false {
+	if !found {
 		val = "/credentials.json"
 	}
 	return val
@@ -23,15 +23,6 @@ func GetMaxJobConfig() int {
 		maxJobNum = 10
 	}
 	return maxJobNum
-}
-
-// GetCleanupTime returns the cleanuo time for completed jobs
-func GetCleanupTime() int {
-	cleanupTime, err := strconv.Atoi(os.Getenv("CLEANUP_TIME"))
-	if err != nil {
-		cleanupTime = 120
-	}
-	return cleanupTime
 }
 
 const (

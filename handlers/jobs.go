@@ -18,24 +18,24 @@ import (
 )
 
 var (
-	trueVal  = true
 	falseVal = false
-)
 
-type JobsArray struct {
-	JobInfo []JobInfo `json:"jobs"`
-}
+	jobClient batchtypev1.JobInterface
+)
 
 type JobInfo struct {
 	UID        string `json:"uid"`
 	Name       string `json:"name"`
 	Status     string `json:"status"`
 	URL        string `json:"url"`
-	Retries    int    `json:"retries"`
 	SQSMessage *sqs.Message
 }
 
 func getJobClient() batchtypev1.JobInterface {
+	if jobClient != nil {
+		return jobClient
+	}
+
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -46,26 +46,26 @@ func getJobClient() batchtypev1.JobInterface {
 	// Access jobs. We can't do it all in one line, since we need to receive the
 	// errors and manage thgem appropriately
 	batchClient := clientset.BatchV1()
-	jobsClient := batchClient.Jobs(os.Getenv("GEN3_NAMESPACE"))
-	return jobsClient
+	jobClient = batchClient.Jobs(os.Getenv("GEN3_NAMESPACE"))
+	return jobClient
 }
 
-func getJobByID(jc batchtypev1.JobInterface, jobid string) (*batchv1.Job, error) {
-	jobs, err := jc.List(metav1.ListOptions{})
+func getJobByID(jobId string) (*batchv1.Job, error) {
+	jobs, err := jobClient.List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 	for _, job := range jobs.Items {
-		if jobid == string(job.GetUID()) {
+		if jobId == string(job.GetUID()) {
 			return &job, nil
 		}
 	}
-	return nil, fmt.Errorf("job with jobid %s not found", jobid)
+	return nil, fmt.Errorf("job with jobid %s not found", jobId)
 }
 
 //GetJobStatusByID returns job status given job id
-func GetJobStatusByID(jobid string) (*JobInfo, error) {
-	job, err := getJobByID(getJobClient(), jobid)
+func GetJobStatusByID(jobId string) (*JobInfo, error) {
+	job, err := getJobByID(jobId)
 	if err != nil {
 		return nil, err
 	}
@@ -78,10 +78,8 @@ func GetJobStatusByID(jobid string) (*JobInfo, error) {
 
 // delete job along with dependencies by job id
 // it should be called when job's status is completed
-func deleteJobByID(jobid string, afterSeconds int64) error {
-
-	client := getJobClient()
-	job, err := getJobByID(client, jobid)
+func deleteJobByID(jobId string, afterSeconds int64) error {
+	job, err := getJobByID(jobId)
 	if err != nil {
 		return err
 	}
@@ -91,7 +89,7 @@ func deleteJobByID(jobid string, afterSeconds int64) error {
 	var deletionPropagation metav1.DeletionPropagation = "Background"
 	deleteOption.PropagationPolicy = &deletionPropagation
 
-	if err = client.Delete(job.Name, deleteOption); err != nil {
+	if err = jobClient.Delete(job.Name, deleteOption); err != nil {
 		glog.Infoln(err)
 	}
 
@@ -99,13 +97,13 @@ func deleteJobByID(jobid string, afterSeconds int64) error {
 
 }
 
-func listJobs(jc batchtypev1.JobInterface) JobsArray {
-	jobs := JobsArray{}
+func listJobs() []JobInfo {
+	jobs := make([]JobInfo, 0)
 
-	jobsList, err := jc.List(metav1.ListOptions{})
-
+	jobsList, err := jobClient.List(metav1.ListOptions{})
 	if err != nil {
-		return jobs
+		glog.Errorf("error listing jobs %s", err)
+		return nil
 	}
 
 	for _, job := range jobsList.Items {
@@ -116,7 +114,7 @@ func listJobs(jc batchtypev1.JobInterface) JobsArray {
 		ji.Name = job.Name
 		ji.UID = string(job.GetUID())
 		ji.Status = jobStatusToString(&job.Status)
-		jobs.JobInfo = append(jobs.JobInfo, ji)
+		jobs = append(jobs, ji)
 	}
 
 	return jobs
@@ -140,35 +138,10 @@ func jobStatusToString(status *batchv1.JobStatus) string {
 	return "Unknown"
 }
 
-// RemoveCompletedJobs removes all completed k8s jobs dispatched by the service
-func RemoveCompletedJobs(monitoredJobs []*JobInfo) []string {
-	jobs := listJobs(getJobClient())
-	var deletedJobs []string
-	for i := 0; i < len(jobs.JobInfo); i++ {
-		job := jobs.JobInfo[i]
-		if job.Status == "Completed" {
-			isMonitoredJob := false
-			for _, jobInfo := range monitoredJobs {
-				if job.UID == jobInfo.UID {
-					isMonitoredJob = true
-					break
-				}
-			}
-			if isMonitoredJob == true {
-				deleteJobByID(job.UID, GRACE_PERIOD)
-				deletedJobs = append(deletedJobs, job.UID)
-			}
-		}
-	}
-	return deletedJobs
-}
-
 // GetNumberRunningJobs returns number of k8s running jobs dispatched by the service
 func GetNumberRunningJobs() int {
-	jobs := listJobs(getJobClient())
 	nRunningJobs := 0
-	for i := 0; i < len(jobs.JobInfo); i++ {
-		job := jobs.JobInfo[i]
+	for _, job := range listJobs() {
 		if job.Status == "Running" || job.Status == "Unknown" {
 			nRunningJobs++
 		}
@@ -178,7 +151,6 @@ func GetNumberRunningJobs() int {
 
 // CreateK8sJob creates a k8s job to handle s3 object
 func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
-
 	// Skip all checking errors since aws cred file was properly loaded already
 	credBytes, _ := ReadFile(LookupCredFile())
 	regionIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "region"})
@@ -205,7 +177,6 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 
 	configString := string(configBytes)
 
-	jobsClient := getJobClient()
 	randname := GetRandString(5)
 	name := fmt.Sprintf("%s-%s", jobConfig.Name, randname)
 	glog.Infoln("job input URL: ", inputURL)
@@ -319,7 +290,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 		// Optional, not used by pach: JobStatus:,
 	}
 
-	newJob, err := jobsClient.Create(batchJob)
+	newJob, err := jobClient.Create(batchJob)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +299,6 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	ji.Name = newJob.Name
 	ji.UID = string(newJob.GetUID())
 	ji.URL = inputURL
-	ji.Retries = 0
 	ji.Status = jobStatusToString(&newJob.Status)
 	return &ji, nil
 }

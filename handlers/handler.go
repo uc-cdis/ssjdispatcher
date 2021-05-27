@@ -5,14 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/golang/glog"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -20,12 +18,10 @@ const (
 )
 
 type SQSHandler struct {
-	sqsClient     sqsiface.SQSAPI
-	QueueURL      string
-	Start         bool
-	JobConfigs    []JobConfig
-	MonitoredJobs []*JobInfo
-	Mu            sync.Mutex
+	sqsClient  sqsiface.SQSAPI
+	QueueURL   string
+	Start      bool
+	JobConfigs []JobConfig
 }
 
 type JobConfig struct {
@@ -64,7 +60,6 @@ func (handler *SQSHandler) StartServer() error {
 
 	go handler.StartConsumingProcess()
 	go handler.StartMonitoringProcess()
-	go handler.RemoveCompletedJobsProcess()
 
 	glog.Info("The server is started")
 
@@ -94,10 +89,9 @@ func (handler *SQSHandler) StartConsumingProcess() error {
 				continue
 			}
 
+			// Immediately remove the message from the queue.
 			handler.RemoveSQSMessage(message)
-
 		}
-
 	}
 }
 
@@ -129,85 +123,35 @@ func (handler *SQSHandler) ResendSQSMessage(queueURL string, message *sqs.Messag
 
 // StartMonitoringProcess starts the process to monitor the created job
 func (handler *SQSHandler) StartMonitoringProcess() {
-	for {
-		var nextMonitoredJobs []*JobInfo
-		handler.Mu.Lock()
-		for _, jobInfo := range handler.MonitoredJobs {
-			if jobInfo.Status == "Completed" {
-				nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
-			} else {
-				k8sJob, err := GetJobStatusByID(jobInfo.UID)
-				if err != nil {
-					jobInfo.Status = "Unknown"
-				} else {
-					glog.Infof("%s: %s", k8sJob.Name, k8sJob.Status)
-					if k8sJob.Status == "Unknown" || k8sJob.Status == "Running" || k8sJob.Status == "Completed" {
-						jobInfo.Status = k8sJob.Status
-					} else if k8sJob.Status == "Failed" {
-						if jobInfo.Retries < MAX_RETRIES {
-							glog.Errorf("The k8s job %s failed (%d/%d retries). Resend the message to the queue", jobInfo.Name, jobInfo.Retries, MAX_RETRIES)
-							handler.ResendSQSMessage(handler.QueueURL, jobInfo.SQSMessage)
-							jobInfo.Retries += 1
-						}
-					}
-				}
-				nextMonitoredJobs = append(nextMonitoredJobs, jobInfo)
-			}
-		}
-		handler.MonitoredJobs = nextMonitoredJobs
-		handler.Mu.Unlock()
+	retries := make(map[string]int)
 
-		out, _ := handler.sqsClient.GetQueueAttributes(&sqs.GetQueueAttributesInput{
-			AttributeNames: []*string{
-				aws.String("ApproximateNumberOfMessages"),
-				aws.String("ApproximateNumberOfMessagesVisible"),
-				aws.String("ApproximateNumberOfMessagesNotVisible"),
-			},
-		})
-		for k, v := range out.Attributes {
-			glog.Infof("queue attributes %s=%s", k, *v)
+	for {
+		for _, job := range listJobs() {
+			k8sJob, err := GetJobStatusByID(job.UID)
+			if err != nil {
+				glog.Errorf("error getting job status %s", err)
+				continue
+			}
+
+			glog.Infof("job status for %s: %s", k8sJob.Name, k8sJob.Status)
+
+			switch k8sJob.Status {
+			case "Completed":
+				deleteJobByID(job.UID, GRACE_PERIOD)
+			case "Failed":
+				retries[job.UID] += 1
+				retryCount := retries[job.UID]
+				if retryCount < MAX_RETRIES {
+					glog.Errorf("The k8s job %s failed (%d/%d retries). Resend the message to the queue", job.Name, retryCount, MAX_RETRIES)
+					handler.ResendSQSMessage(handler.QueueURL, job.SQSMessage)
+				} else {
+					glog.Errorf("The k8s job %s exceeded retry request limits. Discarding.", job.Name)
+					deleteJobByID(job.UID, GRACE_PERIOD)
+				}
+			}
 		}
 
 		time.Sleep(30 * time.Second)
-
-		batchClient := getJobClient()
-		results, _ := batchClient.List(v1.ListOptions{Limit: 100})
-		for _, job := range results.Items {
-			glog.Infof("info: %s %s", job.Name, job.Status.String())
-			for _, condition := range job.Status.Conditions {
-				if condition.Type == "Failed" && condition.Reason == "BackoffLimitExceeded" {
-					glog.Infof("this job is dead: %s", condition.Message)
-					batchClient.Delete(job.Name, &v1.DeleteOptions{})
-				}
-			}
-			for k, v := range job.Annotations {
-				glog.Infof("  %s => %s", k, v)
-			}
-		}
-	}
-}
-
-// RemoveCompletedJobsProcess starts the process to remove completed jobs
-func (handler *SQSHandler) RemoveCompletedJobsProcess() {
-	for {
-		time.Sleep(time.Duration(GetCleanupTime()) * time.Second)
-		glog.Info("Start to remove completed jobs")
-		handler.Mu.Lock()
-		var tmp []*JobInfo
-		deletedJobs := RemoveCompletedJobs(handler.MonitoredJobs)
-		for _, jobInfo := range handler.MonitoredJobs {
-			var isDeleted = false
-			for _, jobid := range deletedJobs {
-				if jobInfo.UID == jobid {
-					isDeleted = true
-				}
-			}
-			if isDeleted == false {
-				tmp = append(tmp, jobInfo)
-			}
-		}
-		handler.MonitoredJobs = tmp
-		handler.Mu.Unlock()
 	}
 }
 
@@ -336,9 +280,6 @@ func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
 			return err
 		}
 		glog.Info(string(out))
-		handler.Mu.Lock()
-		handler.MonitoredJobs = append(handler.MonitoredJobs, jobInfo)
-		handler.Mu.Unlock()
 	}
 
 	return nil
@@ -380,11 +321,8 @@ func (handler *SQSHandler) handleListJobConfigs() (string, error) {
 	return "[" + str + "]", nil
 }
 
-/*
-RetryCreateIndexingJob creates manually job
-*/
+// RetryCreateIndexingJob creates a manual job
 func (handler *SQSHandler) RetryCreateIndexingJob(jsonBytes []byte) error {
-
 	retryMessage := RetryMessage{}
 	if err := json.Unmarshal(jsonBytes, &retryMessage); err != nil {
 		return err
@@ -400,7 +338,7 @@ func (handler *SQSHandler) RetryCreateIndexingJob(jsonBytes []byte) error {
 }
 
 func (handler *SQSHandler) getJobStatusByCheckingMonitoredJobs(url string) string {
-	for _, jobInfo := range handler.MonitoredJobs {
+	for _, jobInfo := range listJobs() {
 		if jobInfo.URL == url {
 			return jobInfo.Status
 		}
