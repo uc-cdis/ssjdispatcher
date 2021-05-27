@@ -146,8 +146,8 @@ func (handler *SQSHandler) StartMonitoringProcess() {
 					handler.ResendSQSMessage(handler.QueueURL, job.SQSMessage)
 				} else {
 					glog.Errorf("The k8s job %s exceeded retry request limits. Discarding.", job.Name)
-					deleteJobByID(job.UID, GRACE_PERIOD)
 				}
+				deleteJobByID(job.UID, GRACE_PERIOD)
 			}
 		}
 
