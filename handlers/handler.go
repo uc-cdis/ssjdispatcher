@@ -128,11 +128,10 @@ func (handler *SQSHandler) RemoveSQSMessage(message *sqs.Message) error {
 func (handler *SQSHandler) StartMonitoringProcess() {
 	for {
 		jobs := handler.jobHandler.listJobs().JobInfo
-		glog.Warningf("[StartMonitoringProcess] found %d jobs", len(jobs))
+		glog.Infof("[StartMonitoringProcess] found %d jobs", len(jobs))
 
 		for _, jobInfo := range jobs {
-			glog.Warningf("[StartMonitoringProcess] checking: %q - status: %q [%s]", jobInfo.Name, jobInfo.Status, jobInfo.UID)
-			glog.Warningf("[StartMonitoringProcess] checking: %q - details\n\t%s", jobInfo.DetailedStatus())
+			glog.Infof("[StartMonitoringProcess] checking: %q - status: %q [%s]", jobInfo.Name, jobInfo.Status, jobInfo.DetailedStatus())
 		}
 
 		time.Sleep(30 * time.Second)

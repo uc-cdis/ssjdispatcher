@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/golang/glog"
 
@@ -12,6 +13,7 @@ import (
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	batchtypev1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 	"k8s.io/client-go/rest"
@@ -68,17 +70,13 @@ func getJobClient() batchtypev1.JobInterface {
 	return jobsClient
 }
 
-func (h *jobHandler) getJobByID(jobid string) (*batchv1.Job, error) {
-	jobs, err := h.jobClient.List(metav1.ListOptions{})
+func (h *jobHandler) getJobByID(jobId string) (*batchv1.Job, error) {
+	job, err := h.jobClient.Get(jobId, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	for _, job := range jobs.Items {
-		if jobid == string(job.GetUID()) {
-			return &job, nil
-		}
-	}
-	return nil, fmt.Errorf("job with jobid %s not found", jobid)
+
+	return job, nil
 }
 
 //GetJobStatusByID returns job status given job id
@@ -94,21 +92,16 @@ func (h *jobHandler) GetJobStatusByID(jobid string) (*JobInfo, error) {
 	return &ji, nil
 }
 
-// delete job along with dependencies by job id
-// it should be called when job's status is completed
-func (h *jobHandler) deleteJobByID(jobid string, afterSeconds int64) error {
-	job, err := h.getJobByID(jobid)
-	if err != nil {
-		return err
-	}
-
+// deleteJobByName deletes a job along with its dependencies by job name.
+func (h *jobHandler) deleteJobByName(jobName string, afterSeconds int64) error {
 	deleteOption := metav1.NewDeleteOptions(afterSeconds)
 
 	var deletionPropagation metav1.DeletionPropagation = "Background"
 	deleteOption.PropagationPolicy = &deletionPropagation
 
-	if err = h.jobClient.Delete(job.Name, deleteOption); err != nil {
-		glog.Infoln(err)
+	if err := h.jobClient.Delete(jobName, deleteOption); err != nil {
+		glog.Errorf("[deleteJobByName] error deleting job %s: %s", jobName, err)
+		return err
 	}
 
 	return nil
@@ -117,12 +110,12 @@ func (h *jobHandler) deleteJobByID(jobid string, afterSeconds int64) error {
 func (h *jobHandler) listJobs() JobsArray {
 	jobs := JobsArray{}
 
-	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{"app": appLabel}}
+	labelSelector := labels.SelectorFromSet(map[string]string{"app": appLabel}).String()
 
-	glog.Infof("[listJobs] list all jobs with label %q", labelSelector.String())
+	glog.Infof("[listJobs] list all jobs with label %q", labelSelector)
 
 	jobsList, err := h.jobClient.List(metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
+		LabelSelector: labelSelector,
 	})
 	if err != nil {
 		glog.Errorf("[listJobs] error listing jobs: %s", err)
@@ -163,11 +156,19 @@ func jobStatusToString(status *batchv1.JobStatus) string {
 func (h *jobHandler) RemoveCompletedJobs() []string {
 	jobs := h.listJobs()
 	var deletedJobs []string
-	for i := 0; i < len(jobs.JobInfo); i++ {
-		job := jobs.JobInfo[i]
-		if job.Status == "Completed" {
-			h.deleteJobByID(job.UID, GRACE_PERIOD)
-			deletedJobs = append(deletedJobs, job.UID)
+	for _, job := range jobs.JobInfo {
+		glog.Infof("[RemoveCompletedJobs] check to remove job %s: %q [%s]", job.Name, job.Status, job.DetailedStatus())
+
+		isCompleted := job.Status == "Completed"
+		isFailedAndExceededRetries := job.Status == "Failed" && job.jobStatus.Failed >= int32(MAX_RETRIES)
+
+		if isCompleted || isFailedAndExceededRetries {
+			glog.Infof("[RemoveCompletedJobs] removing job %s with %d second(s) grace period", job.Name, GRACE_PERIOD)
+			if err := h.deleteJobByName(job.Name, GRACE_PERIOD); err != nil {
+				glog.Errorf("[RemoveCompletedJobs] error deleting job %s: %s", job.Name, err)
+			} else {
+				deletedJobs = append(deletedJobs, job.UID)
+			}
 		}
 	}
 	return deletedJobs
@@ -217,9 +218,9 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	jobsClient := getJobClient()
 	randname := GetRandString(5)
 	name := fmt.Sprintf("%s-%s", jobConfig.Name, randname)
-	glog.Infoln("job input URL: ", inputURL)
+	glog.Infof("job input URL: %s", inputURL)
 	var deadline int64 = 72000
-	var backoff int32 = int32(MAX_RETRIES)
+
 	labels := make(map[string]string)
 	labels["app"] = appLabel
 
@@ -270,7 +271,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 			// Optional: ActiveDeadlineSeconds:,
 			// Optional: Selector:,
 			// Optional: ManualSelector:,
-			BackoffLimit:          &backoff,
+			BackoffLimit:          aws.Int32(int32(MAX_RETRIES)),
 			ActiveDeadlineSeconds: &deadline,
 			Template: k8sv1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
