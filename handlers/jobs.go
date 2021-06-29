@@ -22,6 +22,10 @@ var (
 	falseVal = false
 )
 
+const (
+	appLabel = "ssjdispatcherjob"
+)
+
 type JobsArray struct {
 	JobInfo []JobInfo `json:"jobs"`
 }
@@ -41,8 +45,12 @@ type JobInfo struct {
 	Name       string `json:"name"`
 	Status     string `json:"status"`
 	URL        string `json:"url"`
-	Retries    int    `json:"retries"`
+	jobStatus  *batchv1.JobStatus
 	SQSMessage *sqs.Message
+}
+
+func (j *JobInfo) DetailedStatus() string {
+	return fmt.Sprintf("Succeeded:%d - Failed:%d - Active:%d - Started:%v - Completed:%v", j.jobStatus.Succeeded, j.jobStatus.Failed, j.jobStatus.Failed, j.jobStatus.StartTime, j.jobStatus.CompletionTime)
 }
 
 func getJobClient() batchtypev1.JobInterface {
@@ -109,21 +117,25 @@ func (h *jobHandler) deleteJobByID(jobid string, afterSeconds int64) error {
 func (h *jobHandler) listJobs() JobsArray {
 	jobs := JobsArray{}
 
-	jobsList, err := h.jobClient.List(metav1.ListOptions{})
+	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{"app": appLabel}}
 
+	glog.Infof("[listJobs] list all jobs with label %q", labelSelector.String())
+
+	jobsList, err := h.jobClient.List(metav1.ListOptions{
+		LabelSelector: labelSelector.String(),
+	})
 	if err != nil {
+		glog.Errorf("[listJobs] error listing jobs: %s", err)
 		return jobs
 	}
 
 	for _, job := range jobsList.Items {
-		if job.Labels["app"] != "ssjdispatcherjob" {
-			continue
-		}
-		ji := JobInfo{}
-		ji.Name = job.Name
-		ji.UID = string(job.GetUID())
-		ji.Status = jobStatusToString(&job.Status)
-		jobs.JobInfo = append(jobs.JobInfo, ji)
+		jobs.JobInfo = append(jobs.JobInfo, JobInfo{
+			Name:      job.Name,
+			UID:       string(job.GetUID()),
+			Status:    jobStatusToString(&job.Status),
+			jobStatus: &job.Status,
+		})
 	}
 
 	return jobs
@@ -148,23 +160,14 @@ func jobStatusToString(status *batchv1.JobStatus) string {
 }
 
 // RemoveCompletedJobs removes all completed k8s jobs dispatched by the service
-func (h *jobHandler) RemoveCompletedJobs(monitoredJobs []*JobInfo) []string {
+func (h *jobHandler) RemoveCompletedJobs() []string {
 	jobs := h.listJobs()
 	var deletedJobs []string
 	for i := 0; i < len(jobs.JobInfo); i++ {
 		job := jobs.JobInfo[i]
 		if job.Status == "Completed" {
-			isMonitoredJob := false
-			for _, jobInfo := range monitoredJobs {
-				if job.UID == jobInfo.UID {
-					isMonitoredJob = true
-					break
-				}
-			}
-			if isMonitoredJob == true {
-				h.deleteJobByID(job.UID, GRACE_PERIOD)
-				deletedJobs = append(deletedJobs, job.UID)
-			}
+			h.deleteJobByID(job.UID, GRACE_PERIOD)
+			deletedJobs = append(deletedJobs, job.UID)
 		}
 	}
 	return deletedJobs
@@ -216,9 +219,9 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	name := fmt.Sprintf("%s-%s", jobConfig.Name, randname)
 	glog.Infoln("job input URL: ", inputURL)
 	var deadline int64 = 72000
-	var backoff int32 = 0
+	var backoff int32 = int32(MAX_RETRIES)
 	labels := make(map[string]string)
-	labels["app"] = "ssjdispatcherjob"
+	labels["app"] = appLabel
 
 	if jobConfig.RequestCPU == "" {
 		jobConfig.RequestCPU = "500m"
@@ -330,11 +333,13 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 		return nil, err
 	}
 	glog.Infof("[CreateK8sJob] new job name: %q", newJob.Name)
-	ji := JobInfo{}
-	ji.Name = newJob.Name
-	ji.UID = string(newJob.GetUID())
-	ji.URL = inputURL
-	ji.Retries = 0
-	ji.Status = jobStatusToString(&newJob.Status)
+	ji := JobInfo{
+		Name:      newJob.Name,
+		UID:       string(newJob.GetUID()),
+		URL:       inputURL,
+		Status:    jobStatusToString(&newJob.Status),
+		jobStatus: &newJob.Status,
+	}
+
 	return &ji, nil
 }

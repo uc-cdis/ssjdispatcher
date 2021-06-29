@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,16 +59,6 @@ func TestCheckJobs(t *testing.T) {
 	message := string(messageBytes)
 
 	handler := &SQSHandler{
-		MonitoredJobs: []*JobInfo{
-			{
-				UID:     "job1",
-				Retries: MAX_RETRIES - 1,
-				SQSMessage: &sqs.Message{
-					MessageId: aws.String("existing message id"),
-					Body:      aws.String(message),
-				},
-			},
-		},
 		sqsClient: sqsClient,
 		jobHandler: &jobHandler{
 			jobClient: jobClient,
@@ -77,20 +66,8 @@ func TestCheckJobs(t *testing.T) {
 	}
 	handler.checkJobs()
 
-	// This is not a good thing. We are going to send a new message with a new job
-	// id and so we end up duplicating one message to many over
 	sqsClient.AssertCalled(t, "SendMessage", &sqs.SendMessageInput{
 		MessageBody: aws.String(message),
 		QueueUrl:    aws.String(""),
-	})
-	assert.Equal(t, handler.MonitoredJobs, []*JobInfo{
-		{
-			UID:     "job1",
-			Retries: MAX_RETRIES,
-			SQSMessage: &sqs.Message{
-				MessageId: aws.String("existing message id"),
-				Body:      aws.String(message),
-			},
-		},
 	})
 }

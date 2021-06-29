@@ -47,8 +47,6 @@ func GetValueFromJSON(jsonBytes []byte, keys []string) (interface{}, error) {
 		return nil, errors.New("can not unmarshal data bytes")
 	}
 	for _, key := range keys {
-		fmt.Println("dataMap", dataMap)
-		fmt.Println("key", key)
 		if containKey(dataMap.(map[string]interface{}), key) {
 			dataMap = dataMap.(map[string]interface{})[key]
 		} else {
