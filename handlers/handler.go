@@ -70,7 +70,7 @@ func (handler *SQSHandler) StartServer() error {
 	return nil
 }
 
-// StartConsumingProcess starts consumming the queue
+// StartConsumingProcess starts consuming the queue
 func (handler *SQSHandler) StartConsumingProcess() error {
 	receiveParams := &sqs.ReceiveMessageInput{
 		QueueUrl:            aws.String(handler.QueueURL),
