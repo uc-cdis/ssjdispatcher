@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -71,7 +72,7 @@ func getJobClient() batchtypev1.JobInterface {
 }
 
 func (h *jobHandler) getJobByID(jobId string) (*batchv1.Job, error) {
-	job, err := h.jobClient.Get(jobId, metav1.GetOptions{})
+	job, err := h.jobClient.Get(context.TODO(), jobId, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +100,7 @@ func (h *jobHandler) deleteJobByName(jobName string, afterSeconds int64) error {
 	var deletionPropagation metav1.DeletionPropagation = "Background"
 	deleteOption.PropagationPolicy = &deletionPropagation
 
-	if err := h.jobClient.Delete(jobName, deleteOption); err != nil {
+	if err := h.jobClient.Delete(context.TODO(), jobName, *deleteOption); err != nil {
 		glog.Errorf("[deleteJobByName] error deleting job %s: %s", jobName, err)
 		return err
 	}
@@ -114,7 +115,7 @@ func (h *jobHandler) listJobs() JobsArray {
 
 	glog.Infof("[listJobs] list all jobs with label %q", labelSelector)
 
-	jobsList, err := h.jobClient.List(metav1.ListOptions{
+	jobsList, err := h.jobClient.List(context.TODO(), metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
@@ -329,7 +330,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 		// Optional, not used by pach: JobStatus:,
 	}
 
-	newJob, err := jobsClient.Create(batchJob)
+	newJob, err := jobsClient.Create(context.TODO(), batchJob, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}

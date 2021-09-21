@@ -14,7 +14,7 @@ func RegisterJob() {
 // status checks the status of the job given UID
 func status(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		http.Error(w, "Not supported request method.", 405)
+		http.Error(w, "Not supported request method.", http.StatusMethodNotAllowed)
 		return
 	}
 	UID := r.URL.Query().Get("UID")
@@ -22,19 +22,19 @@ func status(w http.ResponseWriter, r *http.Request) {
 		jobHandler := NewJobHandler()
 		result, errUID := jobHandler.GetJobStatusByID(UID)
 		if errUID != nil {
-			http.Error(w, errUID.Error(), 500)
+			http.Error(w, errUID.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		out, err := json.Marshal(result)
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		fmt.Fprintf(w, string(out))
+		fmt.Fprint(w, string(out))
 	} else {
-		http.Error(w, "Missing UID argument", 300)
+		http.Error(w, "Missing UID argument", http.StatusMultipleChoices)
 		return
 	}
 }
@@ -42,7 +42,7 @@ func status(w http.ResponseWriter, r *http.Request) {
 // list all the jobs
 func list(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		http.Error(w, "Not supported request method.", 405)
+		http.Error(w, "Not supported request method.", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -51,9 +51,9 @@ func list(w http.ResponseWriter, r *http.Request) {
 
 	out, err := json.Marshal(result)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Fprintf(w, string(out))
+	fmt.Fprint(w, string(out))
 }
