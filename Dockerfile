@@ -4,7 +4,7 @@ ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOARCH=amd64
 
-WORKDIR $GOPATH/src/github.com/uc-cdis/sower/
+WORKDIR $GOPATH/src/github.com/uc-cdis/ssjdispatcher/
 
 COPY go.mod .
 COPY go.sum .
@@ -17,4 +17,4 @@ RUN go build -o /ssjdispatcher
 
 FROM scratch
 COPY --from=build-deps /ssjdispatcher /ssjdispatcher
-CMD ["/sower"]
+CMD ["/ssjdispatcher"]
