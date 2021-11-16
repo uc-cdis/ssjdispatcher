@@ -13,7 +13,11 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o /ssjdispatcher
+RUN GITCOMMIT=$(git rev-parse HEAD) \
+    GITVERSION=$(git describe --always --tags) \
+    && go build \
+    -ldflags="-X 'github.com/uc-cdis/ssjdispatcher/handlers/version.GitCommit=${GITCOMMIT}' -X 'github.com/uc-cdis/ssjdispatcher/handlers/version.GitVersion=${GITVERSION}'" \
+    -o /ssjdispatcher
 
 FROM scratch
 COPY --from=build-deps /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
