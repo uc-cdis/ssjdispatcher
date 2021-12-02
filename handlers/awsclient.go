@@ -23,12 +23,12 @@ func NewSQSClient() (sqsiface.SQSAPI, error) {
 		return nil, err
 	}
 
+	sqsSession := session.Must(session.NewSession())
 	if cred.region != "" && cred.awsAccessKeyID != "" && cred.awsSecretAccessKey != "" {
 		config := aws.NewConfig().WithRegion(cred.region).WithCredentials(credentials.NewStaticCredentials(cred.awsAccessKeyID, cred.awsSecretAccessKey, ""))
-		return sqs.New(session.New(config)), nil
+		return sqs.New(sqsSession, config), nil
 	} else {
-		sess, _ := session.NewSession()
-		return sqs.New(sess), nil
+		return sqs.New(sqsSession), nil
 	}
 }
 

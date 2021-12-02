@@ -63,7 +63,7 @@ func TestUtils(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := json.Marshal(jobInterfaces)
+	b, _ := json.Marshal(jobInterfaces)
 	jobConfigs := make([]JobConfig, 0)
 	json.Unmarshal(b, &jobConfigs)
 	assert.Equal(t, len(jobConfigs), 2)

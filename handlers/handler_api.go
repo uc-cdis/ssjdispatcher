@@ -109,7 +109,7 @@ func (handler *SQSHandler) GetIndexingJobStatus(w http.ResponseWriter, r *http.R
 // getIndexingJobStatus get indexing job status
 func (handler *SQSHandler) getIndexingJobStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
-		http.Error(w, "Not supported request method.", 405)
+		http.Error(w, "Not supported request method.", http.StatusMethodNotAllowed)
 		return
 	}
 	// get object url
@@ -118,7 +118,7 @@ func (handler *SQSHandler) getIndexingJobStatus(w http.ResponseWriter, r *http.R
 		status := handler.getJobStatusByCheckingMonitoredJobs(url)
 		w.Write([]byte(status))
 	} else {
-		http.Error(w, "Missing url argument", 300)
+		http.Error(w, "Missing url argument", http.StatusMultipleChoices)
 		return
 	}
 }

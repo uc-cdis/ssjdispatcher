@@ -8,7 +8,7 @@ import (
 // LookupCredFile looks up the credential file
 func LookupCredFile() string {
 	val, found := os.LookupEnv("CRED_FILE")
-	if found == false {
+	if !found {
 		val = "/credentials.json"
 	}
 	return val

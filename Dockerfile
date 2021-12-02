@@ -1,16 +1,25 @@
-FROM quay.io/cdis/golang:1.15 as build-deps
+FROM quay.io/cdis/golang:1.17-bullseye as build-deps
 
-# Build static binary
-RUN mkdir -p /go/src/github.com/uc-cdis/ssjdispatcher
-WORKDIR /go/src/github.com/uc-cdis/ssjdispatcher
-ADD . .
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GOARCH=amd64
 
-RUN go build -ldflags "-linkmode external -extldflags -static" -o /ssjdispatcher
+WORKDIR $GOPATH/src/github.com/uc-cdis/ssjdispatcher/
 
-# Set up small scratch image, and copy necessary things over
-# FROM scratch
+COPY go.mod .
+COPY go.sum .
 
-# COPY --from=build-deps /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-# COPY --from=build-deps /go/src/github.com/uc-cdis/ssjdispatcher/bin/ssjdispatcher /ssjdispatcher
+RUN go mod download
 
-ENTRYPOINT ["/ssjdispatcher"]
+COPY . .
+
+RUN GITCOMMIT=$(git rev-parse HEAD) \
+    GITVERSION=$(git describe --always --tags) \
+    && go build \
+    -ldflags="-X 'github.com/uc-cdis/ssjdispatcher/handlers/version.GitCommit=${GITCOMMIT}' -X 'github.com/uc-cdis/ssjdispatcher/handlers/version.GitVersion=${GITVERSION}'" \
+    -o /ssjdispatcher
+
+FROM scratch
+COPY --from=build-deps /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=build-deps /ssjdispatcher /ssjdispatcher
+CMD ["/ssjdispatcher"]
