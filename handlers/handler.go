@@ -254,6 +254,7 @@ func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
 		for runningJobs > maxJobs {
 			glog.Infof("[HandleSQSMessage] running jobs greater than max jobs (%d/%d)", runningJobs, maxJobs)
 			time.Sleep(5 * time.Second)
+			runningJobs = handler.jobHandler.GetNumberRunningJobs()
 		}
 		jobInfo, err := CreateK8sJob(objectPath, jobConfig)
 		if err != nil {
