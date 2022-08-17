@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/golang/glog"
 )
 
 // RegisterSQSHandler registers endpoints
@@ -63,7 +65,10 @@ func (handler *SQSHandler) deleteJobConfig(w http.ResponseWriter, r *http.Reques
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
-	w.Write([]byte("Successfully delete the job"))
+	_, err := w.Write([]byte("Successfully delete the job"))
+	if err != nil {
+		glog.Errorf("Unable to write response: %s", err)
+	}
 }
 
 func (handler *SQSHandler) listJobConfigs(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +77,10 @@ func (handler *SQSHandler) listJobConfigs(w http.ResponseWriter, r *http.Request
 		msg := fmt.Sprintf("failed to list job config; encountered error: %s", err)
 		http.Error(w, msg, http.StatusInternalServerError)
 	}
-	w.Write([]byte(str))
+	_, err = w.Write([]byte(str))
+	if err != nil {
+		glog.Errorf("Unable to write response: %s", err)
+	}
 }
 
 // HandleDispatchJob dispatch an job
@@ -116,7 +124,10 @@ func (handler *SQSHandler) getIndexingJobStatus(w http.ResponseWriter, r *http.R
 	url := r.URL.Query().Get("url")
 	if url != "" {
 		status := handler.getJobStatusByCheckingMonitoredJobs(url)
-		w.Write([]byte(status))
+		_, err := w.Write([]byte(status))
+		if err != nil {
+			glog.Errorf("Unable to write response: %s", err)
+		}
 	} else {
 		http.Error(w, "Missing url argument", http.StatusMultipleChoices)
 		return

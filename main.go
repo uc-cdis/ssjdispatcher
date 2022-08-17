@@ -30,8 +30,12 @@ func usage() {
 
 func init() {
 	flag.Usage = usage
-	flag.Set("logtostderr", "true")
-	flag.Set("stderrthreshold", "INFO")
+	if err := flag.Set("logtostderr", "true"); err != nil {
+		glog.Errorln("Did not set flag.")
+	}
+	if err := flag.Set("stderrthreshold", "INFO"); err != nil {
+		glog.Errorln("Did not set flag.")
+	}
 	// NOTE: This next line is key you have to call flag.Parse() for the command line
 	// options or "flags" that are defined in the glog module to be picked up.
 	flag.Parse()
@@ -59,7 +63,9 @@ func main() {
 		glog.Info("There is no jobs configured in json credential file")
 	}
 	jobConfigs := make([]handlers.JobConfig, 0)
-	json.Unmarshal(b, &jobConfigs)
+	if err = json.Unmarshal(b, &jobConfigs); err != nil {
+		glog.Errorf("Can not unmarshal json: %s", err)
+	}
 
 	if err := handlers.CheckIndexingJobsImageConfig(jobConfigs); err != nil {
 		glog.Error(err)
