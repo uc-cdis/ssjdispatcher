@@ -1,0 +1,6 @@
+issues:
+  exclude-rules:
+    # Ignore the check for "return value not checked" on the "go command" statements.
+    - linters:
+      - errcheck
+      text: "Error return value of `handler.StartConsumingProcess` is not checked"
