@@ -32,12 +32,12 @@ func init() {
 	flag.Usage = usage
 	flag.Set("logtostderr", "true")
 	flag.Set("stderrthreshold", "INFO")
-	// NOTE: This next line is key you have to call flag.Parse() for the command line
-	// options or "flags" that are defined in the glog module to be picked up.
-	flag.Parse()
 }
 
 func main() {
+	// NOTE: This next line is key you have to call flag.Parse() for the command line
+	// options or "flags" that are defined in the glog module to be picked up.
+	flag.Parse()
 	jsonBytes, err := handlers.ReadFile(handlers.LookupCredFile())
 	if err != nil {
 		glog.Errorln("Can not read credential file!")
