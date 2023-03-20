@@ -12,6 +12,7 @@ helm upgrade --install gen3/ssjdispatcher
 These commands will add the Gen3 helm chart repo and install the ssjdispatcher service to your Kubernetes cluster. 
 
 Deploying ssjdispatcher this way will use the defaults that are defined in this [values.yaml file](https://github.com/uc-cdis/gen3-helm/blob/master/helm/ssjdispatcher/values.yaml)
+
 You can learn more about these values by accessing the ssjdispatcher [README.md](https://github.com/uc-cdis/gen3-helm/blob/master/helm/ssjdispatcher/README.md)
 
 If you would like to override any of the default values, simply copy the above values.yaml file into a local file and make any changes needed. 
