@@ -1,4 +1,2 @@
-'@requires-sower':
-  - '**/*'
-'@requires-indexd':
+'@requires-ssjdispatcher':
   - '**/*'
