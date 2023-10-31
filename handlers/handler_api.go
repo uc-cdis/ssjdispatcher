@@ -2,7 +2,8 @@ package handlers
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
+	"log"
 	"net/http"
 )
 
@@ -15,9 +16,12 @@ func (handler *SQSHandler) RegisterSQSHandler() {
 
 // HandleJobConfig handles job config endpoints
 // to add a jobConfig
-//		curl -X POST http://localhost/jobConfig -d `{"name": "usersync", "pattern": "s3://bucket/usersync.yaml", "image": "quay.io/cdis/fence:master", "imageConfig":{}}`
+//
+//	curl -X POST http://localhost/jobConfig -d `{"name": "usersync", "pattern": "s3://bucket/usersync.yaml", "image": "quay.io/cdis/fence:master", "imageConfig":{}}`
+//
 // to delete jobConfig
-// 		curl -X DELETE http://localhost/jobConfig?pattern=s3://bucket/usersync.yaml
+//
+//	curl -X DELETE http://localhost/jobConfig?pattern=s3://bucket/usersync.yaml
 func (handler *SQSHandler) HandleJobConfig(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		handler.listJobConfigs(w, r)
@@ -42,7 +46,7 @@ func (handler *SQSHandler) addJobConfig(w http.ResponseWriter, r *http.Request) 
 	// }
 	//
 	// Try to read the request body.
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		msg := fmt.Sprintf("failed to read request body; encountered error: %s", err)
 		http.Error(w, msg, http.StatusBadRequest)
@@ -63,7 +67,9 @@ func (handler *SQSHandler) deleteJobConfig(w http.ResponseWriter, r *http.Reques
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
-	w.Write([]byte("Successfully delete the job"))
+	if _, err := w.Write([]byte("Successfully delete the job")); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
 }
 
 func (handler *SQSHandler) listJobConfigs(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +78,9 @@ func (handler *SQSHandler) listJobConfigs(w http.ResponseWriter, r *http.Request
 		msg := fmt.Sprintf("failed to list job config; encountered error: %s", err)
 		http.Error(w, msg, http.StatusInternalServerError)
 	}
-	w.Write([]byte(str))
+	if _, err := w.Write([]byte(str)); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
 }
 
 // HandleDispatchJob dispatch an job
@@ -85,7 +93,7 @@ func (handler *SQSHandler) HandleDispatchJob(w http.ResponseWriter, r *http.Requ
 // addJob adds an job config
 func (handler *SQSHandler) dispatchJob(w http.ResponseWriter, r *http.Request) {
 	// Try to read the request body.
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		msg := fmt.Sprintf("failed to read request body; encountered error: %s", err)
 		http.Error(w, msg, http.StatusBadRequest)
@@ -116,7 +124,9 @@ func (handler *SQSHandler) getIndexingJobStatus(w http.ResponseWriter, r *http.R
 	url := r.URL.Query().Get("url")
 	if url != "" {
 		status := handler.getJobStatusByCheckingMonitoredJobs(url)
-		w.Write([]byte(status))
+		if _, err := w.Write([]byte(status)); err != nil {
+			log.Printf("Failed to write response: %v", err)
+		}
 	} else {
 		http.Error(w, "Missing url argument", http.StatusMultipleChoices)
 		return

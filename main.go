@@ -30,8 +30,12 @@ func usage() {
 
 func init() {
 	flag.Usage = usage
-	flag.Set("logtostderr", "true")
-	flag.Set("stderrthreshold", "INFO")
+	if err := flag.Set("logtostderr", "true"); err != nil {
+		log.Fatalf("Failed to set flag: %v", err)
+	}
+	if err := flag.Set("stderrthreshold", "INFO"); err != nil {
+		log.Fatalf("Failed to set flag: %v", err)
+	}
 }
 
 func main() {
