@@ -264,8 +264,7 @@ func TestCheckIndexingJobsImageConfigWithoutIndexdPassword(t *testing.T) {
 	]
 	`
 	jobConfigs := make([]JobConfig, 0)
-	err := json.Unmarshal([]byte(jobsJson), &jobConfigs)
-	if err != nil {
+	if err := json.Unmarshal([]byte(jobsJson), &jobConfigs); err != nil {
 		t.Fatalf("Failed to unmarshal JSON: %v", err)
 	}
 	err := CheckIndexingJobsImageConfig(jobConfigs)
