@@ -63,7 +63,9 @@ func main() {
 		glog.Info("There is no jobs configured in json credential file")
 	}
 	jobConfigs := make([]handlers.JobConfig, 0)
-	json.Unmarshal(b, &jobConfigs)
+	if err := json.Unmarshal(b, &jobConfigs); err != nil {
+		log.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
 
 	if err := handlers.CheckIndexingJobsImageConfig(jobConfigs); err != nil {
 		glog.Error(err)
