@@ -65,9 +65,10 @@ func TestUtils(t *testing.T) {
 	}
 	b, _ := json.Marshal(jobInterfaces)
 	jobConfigs := make([]JobConfig, 0)
-	json.Unmarshal(b, &jobConfigs)
+	if err := json.Unmarshal(b, &jobConfigs); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
 	assert.Equal(t, len(jobConfigs), 2)
-
 }
 
 // Test that CheckIndexingJobsImageConfig does not return an error when both
@@ -100,7 +101,9 @@ func TestCheckIndexingJobsImageConfigWithIndexdAndMDSCreds(t *testing.T) {
 	]
 	`
 	jobConfigs := make([]JobConfig, 0)
-	json.Unmarshal([]byte(jobsJson), &jobConfigs)
+	if err := json.Unmarshal([]byte(jobsJson), &jobConfigs); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
 	err := CheckIndexingJobsImageConfig(jobConfigs)
 	assert.Equal(t, err, nil)
 }
@@ -130,7 +133,9 @@ func TestCheckIndexingJobsImageConfigWithoutMDSCreds(t *testing.T) {
 	]
 	`
 	jobConfigs := make([]JobConfig, 0)
-	json.Unmarshal([]byte(jobsJson), &jobConfigs)
+	if err := json.Unmarshal([]byte(jobsJson), &jobConfigs); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
 	err := CheckIndexingJobsImageConfig(jobConfigs)
 	assert.NotEqual(t, err, nil)
 }
@@ -175,7 +180,9 @@ func TestCheckIndexingJobsImageConfigWithSecondIndexingJobMissingMDSCreds(t *tes
 	]
 	`
 	jobConfigs := make([]JobConfig, 0)
-	json.Unmarshal([]byte(jobsJson), &jobConfigs)
+	if err := json.Unmarshal([]byte(jobsJson), &jobConfigs); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
 	err := CheckIndexingJobsImageConfig(jobConfigs)
 	assert.NotEqual(t, err, nil)
 }
@@ -215,8 +222,11 @@ func TestCheckIndexingJobsImageConfigWithoutMDSPassword(t *testing.T) {
 	]
 	`
 	jobConfigs := make([]JobConfig, 0)
-	json.Unmarshal([]byte(jobsJson), &jobConfigs)
-	CheckIndexingJobsImageConfig(jobConfigs)
+	if err := json.Unmarshal([]byte(jobsJson), &jobConfigs); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+	err := CheckIndexingJobsImageConfig(jobConfigs)
+	assert.NotEqual(t, err, nil)
 }
 
 // Test that CheckIndexingJobsImageConfig panics when the Indexd password has
@@ -254,8 +264,11 @@ func TestCheckIndexingJobsImageConfigWithoutIndexdPassword(t *testing.T) {
 	]
 	`
 	jobConfigs := make([]JobConfig, 0)
-	json.Unmarshal([]byte(jobsJson), &jobConfigs)
-	CheckIndexingJobsImageConfig(jobConfigs)
+	if err := json.Unmarshal([]byte(jobsJson), &jobConfigs); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+	err := CheckIndexingJobsImageConfig(jobConfigs)
+	assert.NotEqual(t, err, nil)
 }
 
 // Test that CheckIndexingJobsImageConfig panics when the indexing job's
@@ -285,8 +298,11 @@ func TestCheckIndexingJobsImageConfigWithoutImageConfig(t *testing.T) {
 	]
 	`
 	jobConfigs := make([]JobConfig, 0)
-	json.Unmarshal([]byte(jobsJson), &jobConfigs)
-	CheckIndexingJobsImageConfig(jobConfigs)
+	if err := json.Unmarshal([]byte(jobsJson), &jobConfigs); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
+	err := CheckIndexingJobsImageConfig(jobConfigs)
+	assert.NotEqual(t, err, nil)
 }
 
 // Test that CheckIndexingJobsImageConfig does not return an error when there
@@ -304,7 +320,9 @@ func TestCheckIndexingJobsImageConfigWithoutIndexingJob(t *testing.T) {
 	]
 	`
 	jobConfigs := make([]JobConfig, 0)
-	json.Unmarshal([]byte(jobsJson), &jobConfigs)
+	if err := json.Unmarshal([]byte(jobsJson), &jobConfigs); err != nil {
+		t.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
 	err := CheckIndexingJobsImageConfig(jobConfigs)
 	assert.Equal(t, err, nil)
 }

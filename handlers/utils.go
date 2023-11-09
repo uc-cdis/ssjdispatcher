@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
+	"os"
 	"strings"
 )
 
@@ -21,9 +21,9 @@ func GetRandString(n int) string {
 }
 
 func ReadFile(path string) ([]byte, error) {
-	buff, err := ioutil.ReadFile(path)
+	buff, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Can not read file %s. Detail %s", path, err)
+		return nil, fmt.Errorf("can not read file %s: details %s", path, err)
 	}
 	return buff, nil
 }
@@ -63,9 +63,9 @@ func CheckIndexingJobsImageConfig(jobConfigs []JobConfig) error {
 		if jobConfig.Name == "indexing" {
 			imageConfig := jobConfig.ImageConfig.(map[string]interface{})
 			if (imageConfig["url"].(string) == "") || (imageConfig["username"].(string) == "") || (imageConfig["password"].(string) == "") {
-				return errors.New("indexing job imageConfig section missing indexd url and/or creds!")
+				return errors.New("indexing job imageConfig section missing indexd url and/or creds")
 			}
-			mdsErrorMessage := "indexing job imageConfig section missing metadataService url and/or creds!"
+			mdsErrorMessage := "indexing job imageConfig section missing metadataService url and/or creds"
 			if mdsConfig, ok := imageConfig["metadataService"]; ok {
 				mdsConfig := mdsConfig.(map[string]interface{})
 				if (mdsConfig["url"].(string) == "") || (mdsConfig["username"].(string) == "") || (mdsConfig["password"].(string) == "") {

@@ -61,7 +61,12 @@ func NewSQSHandler(queueURL string) *SQSHandler {
 func (handler *SQSHandler) StartServer() error {
 	glog.Info("Starting a new server ...")
 
-	go handler.StartConsumingProcess()
+	go func() {
+		if err := handler.StartConsumingProcess(); err != nil {
+			// Handle the error as appropriate, for instance:
+			glog.Fatalf("Failed to start consuming process: %v", err)
+		}
+	}()
 	go handler.StartMonitoringProcess()
 	go handler.RemoveCompletedJobsProcess()
 
@@ -153,24 +158,25 @@ func (handler *SQSHandler) RemoveCompletedJobsProcess() {
 getObjectFromSQSMessage returns s3 object from sqs message
 
 The format of a SQS message body:
-{
-	"Type" : "Notification",
-  	"MessageId" : "f0207b9c-7255-5f61-998a-2f0e64c6eef0",
-	"TopicArn" : "arn:aws:sns:us-east-1:707,
-	"Subject" : "Amazon S3 Notification",
-	"Message":  {"Records":[
-		{"eventVersion":"2.0","eventSource":"aws:s3","awsRegion":"us-east-1",
-		"eventTime":"2018-11-19T00:57:57.693Z","eventName":"ObjectCreated:Put",
-		"userIdentity":{"principalId":"AWS:AIDAIU3LRUEK5OHS6FXRQ"},
-		"requestParameters":{"sourceIPAddress":"173.24.34.163"},
-		"responseElements":{"x-amz-request-id":"91CF670A054E0332",
-		"x-amz-id-2":"h0ZQgg6w2qzKUkzivRizP1E1Jf9QAXSu1bUllWaF2b7j/63XRgjGLMNyI7sl016QKSaxK1L2RrI="},
-		"s3":{"s3SchemaVersion":"1.0","configurationId":"Giang Bui",
-		"bucket":{"name":"xssxs","ownerIdentity":{"principalId":"A365FU9MXCCF0S"},
-		"arn":"arn:aws:s3:::xssxs"},"object":{"key":"api.py","size":8005,"eTag":"b4ef93035ff791f7d507a47342c89cd6",
-		"sequencer":"005BF20A95A51A4C46"}}}]}
+
+	{
+		"Type" : "Notification",
+	  	"MessageId" : "f0207b9c-7255-5f61-998a-2f0e64c6eef0",
+		"TopicArn" : "arn:aws:sns:us-east-1:707,
+		"Subject" : "Amazon S3 Notification",
+		"Message":  {"Records":[
+			{"eventVersion":"2.0","eventSource":"aws:s3","awsRegion":"us-east-1",
+			"eventTime":"2018-11-19T00:57:57.693Z","eventName":"ObjectCreated:Put",
+			"userIdentity":{"principalId":"AWS:AIDAIU3LRUEK5OHS6FXRQ"},
+			"requestParameters":{"sourceIPAddress":"173.24.34.163"},
+			"responseElements":{"x-amz-request-id":"91CF670A054E0332",
+			"x-amz-id-2":"h0ZQgg6w2qzKUkzivRizP1E1Jf9QAXSu1bUllWaF2b7j/63XRgjGLMNyI7sl016QKSaxK1L2RrI="},
+			"s3":{"s3SchemaVersion":"1.0","configurationId":"Giang Bui",
+			"bucket":{"name":"xssxs","ownerIdentity":{"principalId":"A365FU9MXCCF0S"},
+			"arn":"arn:aws:s3:::xssxs"},"object":{"key":"api.py","size":8005,"eTag":"b4ef93035ff791f7d507a47342c89cd6",
+			"sequencer":"005BF20A95A51A4C46"}}}]}
+		}
 	}
-}
 */
 func getObjectsFromSQSMessage(msgBody string) []string {
 	objectPaths := make([]string, 0)
@@ -230,7 +236,6 @@ of jobpool, the service will take a sleep until the resource is available.
 If the function returns an error other than nil, the message is put back
 to the queue and retry later (handled by `md` library). That makes sure
 the message is properly handle before it actually deleted
-
 */
 func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
 	jsonBody := *message.Body

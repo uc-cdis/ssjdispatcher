@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	trueVal  = true
+	// trueVal  = true
 	falseVal = false
 )
 
@@ -64,6 +64,10 @@ func getJobClient() batchtypev1.JobInterface {
 	}
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		// Handle the error as appropriate, for instance:
+		glog.Fatalf("Failed to create kubernetes clientset: %v", err)
+	}
 	// Access jobs. We can't do it all in one line, since we need to receive the
 	// errors and manage thgem appropriately
 	batchClient := clientset.BatchV1()
@@ -80,7 +84,7 @@ func (h *jobHandler) getJobByID(jobId string) (*batchv1.Job, error) {
 	return job, nil
 }
 
-//GetJobStatusByID returns job status given job id
+// GetJobStatusByID returns job status given job id
 func (h *jobHandler) GetJobStatusByID(jobid string) (*JobInfo, error) {
 	job, err := h.getJobByID(jobid)
 	if err != nil {

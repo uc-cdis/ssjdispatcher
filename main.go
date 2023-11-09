@@ -30,8 +30,12 @@ func usage() {
 
 func init() {
 	flag.Usage = usage
-	flag.Set("logtostderr", "true")
-	flag.Set("stderrthreshold", "INFO")
+	if err := flag.Set("logtostderr", "true"); err != nil {
+		log.Fatalf("Failed to set flag: %v", err)
+	}
+	if err := flag.Set("stderrthreshold", "INFO"); err != nil {
+		log.Fatalf("Failed to set flag: %v", err)
+	}
 }
 
 func main() {
@@ -59,7 +63,9 @@ func main() {
 		glog.Info("There is no jobs configured in json credential file")
 	}
 	jobConfigs := make([]handlers.JobConfig, 0)
-	json.Unmarshal(b, &jobConfigs)
+	if err := json.Unmarshal(b, &jobConfigs); err != nil {
+		log.Fatalf("Failed to unmarshal JSON: %v", err)
+	}
 
 	if err := handlers.CheckIndexingJobsImageConfig(jobConfigs); err != nil {
 		glog.Error(err)
