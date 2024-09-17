@@ -1,20 +1,48 @@
-name: Golang CI Workflow
+name: Golang CI Action
+description: Golang CI Action
 
-on: push
+inputs:
+  GO_VERSION:
+    required: false
+    type: string
+    default: "1.22"
+  TESTS_LOCATION:
+    required: false
+    type: string
+    default: "./..."
+  COVERAGE_PROFILE_OUTPUT_LOCATION:
+    required: false
+    type: string
+    default: "./profile.cov"
 
-jobs:
-  ci:
-    runs-on: ubuntu-latest
-    env:
-      GO_VERSION: "1.20"
-      COVERAGE_PROFILE_OUTPUT_LOCATION: "./profile.cov"
-    steps:
-      - name: Checkout code / lint code / install dependencies for goveralls / run tests
-        uses: uc-cdis/.github/.github/actions/golang-ci@master
-        with:
-          COVERAGE_PROFILE_OUTPUT_LOCATION: ${{ env.COVERAGE_PROFILE_OUTPUT_LOCATION }}
-          GO_VERSION: ${{ env.GO_VERSION }}
-      - name: Send coverage to coveralls using goveralls
-        env:
-          COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: goveralls -coverprofile=${{ env.COVERAGE_PROFILE_OUTPUT_LOCATION }} -service=github
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "${{ inputs.GO_VERSION }}"
+    - name: Check out code
+      uses: actions/checkout@v3
+    - name: Install dependencies
+      run: |
+        go mod download
+      shell: bash
+    - name: Run Unit tests
+      id: unit_tests_step
+      run: |
+        go test ${{ inputs.TESTS_LOCATION }} -v -coverpkg=${{ inputs.TESTS_LOCATION }} -race -covermode atomic -coverprofile=${{ inputs.COVERAGE_PROFILE_OUTPUT_LOCATION }}
+      shell: bash
+    - name: Lint source code
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: v1.59
+        args: --timeout=5m
+        skip-cache: true
+    - name: Display lint results
+      run: golangci-lint run
+      if: always()
+      shell: bash
+    - name: Install goveralls
+      run: go install github.com/mattn/goveralls@latest
+      shell: bash
