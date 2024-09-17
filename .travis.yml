@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - master
+  - "1.20.x"
 
 # Restrict to cloning only 1 commit.
 git:
