@@ -205,9 +205,9 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	if regionIf != nil {
 		awsRegion = regionIf.(string)
 	}
-	endpointIf := ""
+	endpoint := ""
 	if endpointIf != nil {
-		endpointIf = endpointIf.(string)
+		endpoint = endpointIf.(string)
 	}
 	awsAccessKey := ""
 	if accessKeyIf != nil {
@@ -316,7 +316,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 								},
 								{
 									Name:  "AWS_ENDPOINT_URL_S3",
-									Value: endpointIf,
+									Value: endpoint,
 								},
 								{
 									Name:  "AWS_ACCESS_KEY_ID",
