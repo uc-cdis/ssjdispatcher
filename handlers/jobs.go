@@ -197,7 +197,7 @@ func CreateK8sJob(inputURL string, jobConfig JobConfig) (*JobInfo, error) {
 	// Skip all checking errors since aws cred file was properly loaded already
 	credBytes, _ := ReadFile(LookupCredFile())
 	regionIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "region"})
-	endpointIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "s3_endpoint"}
+	endpointIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "s3_endpoint"})
 	accessKeyIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "aws_access_key_id"})
 	secretKeyIf, _ := GetValueFromJSON(credBytes, []string{"AWS", "aws_secret_access_key"})
 
