@@ -15,8 +15,8 @@ RUN go mod download
 COPY --chown=1000:1000 . .
 
 RUN GITCOMMIT=$(git rev-parse HEAD) \
-    GITVERSION=$(git describe --always --tags)
-RUN go build \
+    GITVERSION=$(git describe --always --tags) \
+        && go build \
     -ldflags="-X 'github.com/uc-cdis/ssjdispatcher/handlers/version.GitCommit=${GITCOMMIT}' -X 'github.com/uc-cdis/ssjdispatcher/handlers/version.GitVersion=${GITVERSION}'" \
     -o /ssjdispatcher
 
