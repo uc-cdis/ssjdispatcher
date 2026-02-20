@@ -1,4 +1,4 @@
-FROM quay.io/cdis/golang-build-base:go1.26.0 as build-deps
+FROM quay.io/cdis/golang-build-base:go1.26.0 AS build-deps
 
 
 ENV CGO_ENABLED=0
@@ -7,16 +7,16 @@ ENV GOARCH=amd64
 
 WORKDIR $GOPATH/src/github.com/uc-cdis/ssjdispatcher/
 
-COPY go.mod .
-COPY go.sum .
+COPY --chown=1000:1000 go.mod .
+COPY --chown=1000:1000 go.sum .
 
 RUN go mod download
 
-COPY . .
+COPY --chown=1000:1000 . .
 
 RUN GITCOMMIT=$(git rev-parse HEAD) \
-    GITVERSION=$(git describe --always --tags) \
-    && go build \
+    GITVERSION=$(git describe --always --tags)
+RUN go build \
     -ldflags="-X 'github.com/uc-cdis/ssjdispatcher/handlers/version.GitCommit=${GITCOMMIT}' -X 'github.com/uc-cdis/ssjdispatcher/handlers/version.GitVersion=${GITVERSION}'" \
     -o /ssjdispatcher
 
