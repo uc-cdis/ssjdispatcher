@@ -1,4 +1,4 @@
-FROM quay.io/cdis/golang-build-base:go1.26.0 AS build-deps
+FROM quay.io/cdis/amazonlinux-base:go1.26 AS build-deps
 
 
 ENV CGO_ENABLED=0
