@@ -1,4 +1,5 @@
-FROM quay.io/cdis/golang:1.24.12-bookworm as build-deps
+FROM quay.io/cdis/golang-build-base:go1.26.0 as build-deps
+
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
