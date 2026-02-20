@@ -18,13 +18,13 @@ RUN GITCOMMIT=$(git rev-parse HEAD) \
     GITVERSION=$(git describe --always --tags) \
         && go build \
     -ldflags="-X 'github.com/uc-cdis/ssjdispatcher/handlers/version.GitCommit=${GITCOMMIT}' -X 'github.com/uc-cdis/ssjdispatcher/handlers/version.GitVersion=${GITVERSION}'" \
-    -o /ssjdispatcher
+    -o /go/bin/ssjdispatcher
 
-RUN echo "nobody:x:65534:65534:Nobody:/:" > /etc_passwd
+RUN echo "nobody:x:65534:65534:Nobody:/:" > etc_passwd
 
 FROM scratch
 USER nobody
 COPY --from=build-deps /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=build-deps /ssjdispatcher /ssjdispatcher
-COPY --from=build-deps /etc_passwd /etc/passwd
+COPY --from=build-deps /go/bin/ssjdispatcher /ssjdispatcher
+COPY --from=build-deps etc_passwd /etc/passwd
 CMD ["/ssjdispatcher"]
