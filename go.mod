@@ -1,6 +1,7 @@
 module github.com/uc-cdis/ssjdispatcher
 
 go 1.26
+
 toolchain go1.26.0
 
 require (
