@@ -11,5 +11,7 @@ func RegisterSystem() {
 }
 
 func systemStatus(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Healthy")
+	if _, err := fmt.Fprint(w, "Healthy"); err != nil {
+		fmt.Printf("Failed to write system status response: %v\n", err)
+	}
 }
