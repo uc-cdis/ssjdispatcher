@@ -12,6 +12,7 @@ import (
 // S3Credentials contains AWS credentials
 type AWSCredentials struct {
 	region             string
+	endpoint           string
 	awsAccessKeyID     string
 	awsSecretAccessKey string
 }
@@ -45,6 +46,12 @@ func loadCredentialFromConfigFile(path string) (*AWSCredentials, error) {
 		glog.Info("Can not read region from credential file. Gonna use attached service account")
 	} else {
 		credentials.region = region.(string)
+	}
+
+	if endpoint, err := GetValueFromJSON(jsonBytes, []string{"AWS", "s3_endpoint"}); err != nil {
+		glog.Info("Can not read s3 endpoint from credential file. Gonna use default endpoint")
+	} else {
+		credentials.endpoint = endpoint.(string)
 	}
 
 	if awsKeyID, err := GetValueFromJSON(jsonBytes, []string{"AWS", "aws_access_key_id"}); err != nil {
