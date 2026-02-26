@@ -1,8 +1,8 @@
 module github.com/uc-cdis/ssjdispatcher
 
-go 1.23.0
+go 1.26
 
-toolchain go1.23.5
+toolchain go1.26.0
 
 require (
 	github.com/aws/aws-sdk-go v1.55.6

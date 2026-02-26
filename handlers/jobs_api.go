@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -32,7 +33,10 @@ func status(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Fprint(w, string(out))
+		if _, err = fmt.Fprint(w, string(out)); err != nil {
+			log.Printf("Failed to write response: %v", err)
+		}
+
 	} else {
 		http.Error(w, "Missing UID argument", http.StatusMultipleChoices)
 		return
@@ -55,5 +59,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprint(w, string(out))
+	if _, err = fmt.Fprint(w, string(out)); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
 }

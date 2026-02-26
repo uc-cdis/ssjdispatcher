@@ -23,11 +23,12 @@ func (handler *SQSHandler) RegisterSQSHandler() {
 //
 //	curl -X DELETE http://localhost/jobConfig?pattern=s3://bucket/usersync.yaml
 func (handler *SQSHandler) HandleJobConfig(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
+	switch r.Method {
+	case "GET":
 		handler.listJobConfigs(w, r)
-	} else if r.Method == "POST" {
+	case "POST":
 		handler.addJobConfig(w, r)
-	} else if r.Method == "DELETE" {
+	case "DELETE":
 		handler.deleteJobConfig(w, r)
 	}
 }
@@ -57,7 +58,9 @@ func (handler *SQSHandler) addJobConfig(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
-	fmt.Fprintf(w, "Successfully add a new job!")
+	if _, err = fmt.Fprint(w, "Successfully add a new job!"); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
 }
 
 func (handler *SQSHandler) deleteJobConfig(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +107,9 @@ func (handler *SQSHandler) dispatchJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 	}
-	fmt.Fprintf(w, "Successfully dispatch a new job!")
+	if _, err = fmt.Fprint(w, "Successfully dispatch a new job!"); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
 }
 
 // GetIndexingJobStatus get indexing job status
