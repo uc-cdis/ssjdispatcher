@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/golang/glog"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -49,7 +49,7 @@ type JobInfo struct {
 	Status     string `json:"status"`
 	URL        string `json:"url"`
 	jobStatus  *batchv1.JobStatus
-	SQSMessage *sqs.Message
+	SQSMessage *types.Message
 }
 
 func (j *JobInfo) DetailedStatus() string {

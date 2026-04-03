@@ -1,15 +1,16 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/golang/glog"
 )
 
@@ -21,7 +22,7 @@ type SQSHandler struct {
 	QueueURL   string
 	Start      bool
 	JobConfigs []JobConfig
-	sqsClient  sqsiface.SQSAPI
+	sqsClient  SQSAPI
 	jobHandler *jobHandler
 }
 
@@ -79,53 +80,53 @@ func (handler *SQSHandler) StartServer() error {
 func (handler *SQSHandler) StartConsumingProcess() error {
 	receiveParams := &sqs.ReceiveMessageInput{
 		QueueUrl:            aws.String(handler.QueueURL),
-		MaxNumberOfMessages: aws.Int64(1),
-		VisibilityTimeout:   aws.Int64(30),
-		WaitTimeSeconds:     aws.Int64(20),
+		MaxNumberOfMessages: 1,
+		VisibilityTimeout:   30,
+		WaitTimeSeconds:     20,
 	}
 
 	for {
 		time.Sleep(1 * time.Second)
 
-		glog.Infof("[StartConsumingProcess] poll for messages (%d seconds)", *receiveParams.WaitTimeSeconds)
+		glog.Infof("[StartConsumingProcess] poll for messages (%d seconds)", receiveParams.WaitTimeSeconds)
 		// This is a long polling action if WaitTimeSeconds is above 0. This will
 		// block until a message is received or this times out.
-		receiveResp, err := handler.sqsClient.ReceiveMessage(receiveParams)
+		receiveResp, err := handler.sqsClient.ReceiveMessage(context.TODO(), receiveParams)
 		if err != nil {
 			glog.Errorf("[StartConsumingProcess] error receiving messages: %s", err)
 		}
 		glog.Infof("[StartConsumingProcess] received %d messages", len(receiveResp.Messages))
 
 		for _, message := range receiveResp.Messages {
-			err := handler.HandleSQSMessage(message)
-			glog.Infof("[StartConsumingProcess] handled message %s (error=%t)", *message.MessageId, err != nil)
+			err := handler.HandleSQSMessage(&message)
+			glog.Infof("[StartConsumingProcess] handled message %s (error=%t)", aws.ToString(message.MessageId), err != nil)
 
 			if err != nil {
-				glog.Errorf("Can not process the message. Error %s. Message %s", err, *message.Body)
+				glog.Errorf("Can not process the message. Error %s. Message %s", err, aws.ToString(message.Body))
 				continue
 			}
 
-			if err := handler.RemoveSQSMessage(message); err != nil {
-				glog.Infof("[StartConsumingProcess] error removing message %s: %s", *message.MessageId, err)
+			if err := handler.RemoveSQSMessage(&message); err != nil {
+				glog.Infof("[StartConsumingProcess] error removing message %s: %s", aws.ToString(message.MessageId), err)
 			} else {
-				glog.Infof("[StartConsumingProcess] message removed %s", *message.MessageId)
+				glog.Infof("[StartConsumingProcess] message removed %s", aws.ToString(message.MessageId))
 			}
 		}
 	}
 }
 
 // RemoveSQSMessage removes SQS message
-func (handler *SQSHandler) RemoveSQSMessage(message *sqs.Message) error {
+func (handler *SQSHandler) RemoveSQSMessage(message *types.Message) error {
 	deleteParams := &sqs.DeleteMessageInput{
 		QueueUrl:      aws.String(handler.QueueURL), // Required
 		ReceiptHandle: message.ReceiptHandle,        // Required
 	}
 	// No response returned when successed.
-	if _, err := handler.sqsClient.DeleteMessage(deleteParams); err != nil {
+	if _, err := handler.sqsClient.DeleteMessage(context.TODO(), deleteParams); err != nil {
 		glog.Error(err)
 		return err
 	}
-	glog.Infof("[RemoveSQSMessage] message %s has been removed", *message.MessageId)
+	glog.Infof("[RemoveSQSMessage] message %s has been removed", aws.ToString(message.MessageId))
 	return nil
 }
 
@@ -237,7 +238,7 @@ If the function returns an error other than nil, the message is put back
 to the queue and retry later (handled by `md` library). That makes sure
 the message is properly handle before it actually deleted
 */
-func (handler *SQSHandler) HandleSQSMessage(message *sqs.Message) error {
+func (handler *SQSHandler) HandleSQSMessage(message *types.Message) error {
 	jsonBody := *message.Body
 	objectPaths := getObjectsFromSQSMessage(jsonBody)
 
@@ -327,8 +328,8 @@ func (handler *SQSHandler) RetryCreateIndexingJob(jsonBytes []byte) error {
 	str := fmt.Sprintf(`{
 		"Type" : "Notification",
 		"Message" : "{\"Records\":[{\"eventSource\":\"aws:s3\",\"awsRegion\":\"us-east-1\",\"eventName\":\"ObjectCreated:Put\",\"s3\":{\"s3SchemaVersion\":\"1.0\",\"bucket\":{\"name\":\"%s\"},\"object\":{\"key\":\"%s\"}}}]}"}`, retryMessage.Bucket, retryMessage.Key)
-	sqsMessage := sqs.Message{}
-	sqsMessage.SetBody(str)
+	sqsMessage := types.Message{}
+	sqsMessage.Body = aws.String(str)
 
 	return handler.HandleSQSMessage(&sqsMessage)
 }
