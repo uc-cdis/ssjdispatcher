@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"context" // Required for all v2 API calls
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/golang/glog"
 )
 
@@ -16,20 +16,37 @@ type AWSCredentials struct {
 	awsSecretAccessKey string
 }
 
+// Custom SQSAPI interface to replace sqsiface.SQSAPI
+// https://docs.aws.amazon.com/sdk-for-go/v2/developer-guide/migrate-gosdk.html#mocking-and-iface
+type SQSAPI interface {
+	ReceiveMessage(ctx context.Context, params *sqs.ReceiveMessageInput, optFns ...func(*sqs.Options)) (*sqs.ReceiveMessageOutput, error)
+	DeleteMessage(ctx context.Context, params *sqs.DeleteMessageInput, optFns ...func(*sqs.Options)) (*sqs.DeleteMessageOutput, error)
+}
+
 // NewSQSClient create new SQSAPI client
-func NewSQSClient() (sqsiface.SQSAPI, error) {
+func NewSQSClient() (SQSAPI, error) {
 	cred, err := loadCredentialFromConfigFile(LookupCredFile())
 	if err != nil {
 		return nil, err
 	}
 
-	sqsSession := session.Must(session.NewSession())
-	if cred.region != "" && cred.awsAccessKeyID != "" && cred.awsSecretAccessKey != "" {
-		config := aws.NewConfig().WithRegion(cred.region).WithCredentials(credentials.NewStaticCredentials(cred.awsAccessKeyID, cred.awsSecretAccessKey, ""))
-		return sqs.New(sqsSession, config), nil
-	} else {
-		return sqs.New(sqsSession), nil
+	var optFns []func(*config.LoadOptions) error
+
+	if cred.region != "" {
+		optFns = append(optFns, config.WithRegion(cred.region))
 	}
+
+	if cred.awsAccessKeyID != "" && cred.awsSecretAccessKey != "" {
+		staticProvider := credentials.NewStaticCredentialsProvider(cred.awsAccessKeyID, cred.awsSecretAccessKey, "")
+		optFns = append(optFns, config.WithCredentialsProvider(staticProvider))
+	}
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(), optFns...)
+	if err != nil {
+		return nil, err
+	}
+
+	return sqs.NewFromConfig(cfg), nil
 }
 
 // loadCredentialFromConfigFile loads AWS credentials from the config file
