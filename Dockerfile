@@ -10,6 +10,8 @@ ENV GOARCH=amd64
 ENV GOTOOLCHAIN=go1.26.0
 
 
+
+
 WORKDIR $GOPATH/src/github.com/uc-cdis/ssjdispatcher/
 
 COPY go.mod .
